@@ -44,7 +44,13 @@ impl EventStore {
     }
 
     pub fn load_state(&self) -> Result<DayState> {
-        let events = self.load_events()?;
+        let today = chrono::Local::now().date_naive();
+        let events: Vec<Event> = self
+            .load_events()?
+            .into_iter()
+            .filter(|event| event.at.with_timezone(&chrono::Local).date_naive() == today)
+            .collect();
+
         Ok(DayState::replay(&events))
     }
 
@@ -305,11 +311,6 @@ impl EventStore {
             }
 
             return Ok(format!("No active task matched: {}", task_ref));
-        }
-
-        if input == "finish" {
-            self.finish_session()?;
-            return Ok("Session finished".to_string());
         }
 
         if input == "review" {

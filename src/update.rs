@@ -1,6 +1,6 @@
 use crate::action::Action;
 use crate::models::{Event, EventKind};
-use crate::state::{AppState, CurrentScreen};
+use crate::state::{ActivePane, AppState, CurrentScreen};
 
 #[derive(Debug, PartialEq)]
 pub enum Command {

@@ -6,10 +6,7 @@ use uuid::Uuid;
 fn event_at(offset: i64, kind: EventKind) -> Event {
     Event {
         id: Uuid::now_v7(),
-        at: Utc
-            .with_ymd_and_hms(2026, 4, 30, 9, 0, 0)
-            .single()
-            .unwrap()
+        at: Utc.with_ymd_and_hms(2026, 4, 30, 9, 0, 0).single().unwrap()
             + Duration::seconds(offset),
         kind,
     }
@@ -68,8 +65,18 @@ fn dropped_and_removed_tasks_leave_active_views_but_remain_in_history() {
                 priority: false,
             },
         ),
-        event_at(2, EventKind::TaskDropped { task_id: dropped_id }),
-        event_at(3, EventKind::TaskRemoved { task_id: removed_id }),
+        event_at(
+            2,
+            EventKind::TaskDropped {
+                task_id: dropped_id,
+            },
+        ),
+        event_at(
+            3,
+            EventKind::TaskRemoved {
+                task_id: removed_id,
+            },
+        ),
     ];
 
     let state = DayState::replay(&events);

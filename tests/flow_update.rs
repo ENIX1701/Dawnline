@@ -2,16 +2,13 @@ use chrono::{Duration, TimeZone, Utc};
 use dawnline::action::Action;
 use dawnline::models::{BlockTiming, DayState, Event, EventKind};
 use dawnline::state::{ActivePane, AppState, CurrentScreen};
-use dawnline::update::{update, Command};
+use dawnline::update::{Command, update};
 use uuid::Uuid;
 
 fn event_at(offset: i64, kind: EventKind) -> Event {
     Event {
         id: Uuid::now_v7(),
-        at: Utc
-            .with_ymd_and_hms(2026, 4, 30, 9, 0, 0)
-            .single()
-            .unwrap()
+        at: Utc.with_ymd_and_hms(2026, 4, 30, 9, 0, 0).single().unwrap()
             + Duration::seconds(offset),
         kind,
     }

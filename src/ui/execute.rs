@@ -1,115 +1,137 @@
 use crate::models::{BlockStatus, TaskStatus};
 use crate::state::AppState;
+use crate::theme::DawnTheme;
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{List, ListItem, Paragraph},
 };
 
 pub fn render(f: &mut Frame, app: &AppState, area: Rect) {
+    let theme = DawnTheme::dawn();
+
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
         .split(area);
 
-    render_now(f, app, chunks[0]);
-    render_tasks(f, app, chunks[1]);
+    render_now(f, app, chunks[0], theme);
+    render_queue(f, app, chunks[1], theme);
 }
 
-fn render_now(f: &mut Frame, app: &AppState, area: Rect) {
-    let block_title = app
+fn render_now(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let active = app.day.active_block();
+    let next = app
         .day
-        .active_block()
-        .map(|block| block.title.clone())
-        .unwrap_or_else(|| "No active block".to_string());
+        .blocks
+        .iter()
+        .find(|block| block.status == BlockStatus::Planned);
 
     let mut lines = vec![
-        Line::from(Span::styled(
-            "NOW",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(block_title),
-        Line::from(""),
-        Line::from(format!("Open tasks: {}", app.day.active_tasks().len())),
-        Line::from(format!("Priority: {}", app.day.priority_tasks().len())),
-        Line::from(format!("Focus: {}m", app.day.focus_minutes)),
+        Line::from(Span::styled("now", theme.accent())),
         Line::from(""),
         Line::from(Span::styled(
-            "Timeline",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
+            active
+                .map(|block| block.title.clone())
+                .unwrap_or_else(|| "No active block".to_string()),
+            theme.text(),
         )),
     ];
 
-    for block in &app.day.blocks {
-        let color = match block.status {
-            BlockStatus::Planned => Color::White,
-            BlockStatus::Active => Color::Yellow,
-            BlockStatus::Done => Color::DarkGray,
-        };
-
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("{:<8}", block.timing),
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::styled(block.title.clone(), Style::default().fg(color)),
-        ]));
+    if let Some(block) = active
+        && let Some(intent) = &block.intent
+    {
+        lines.push(Line::from(Span::styled(intent.clone(), theme.muted())));
     }
 
-    let panel = Paragraph::new(lines)
-        .wrap(ratatui::widgets::Wrap { trim: true })
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" CURRENT BLOCK "),
-        );
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        format!("focus {}", format_minutes(app.day.focus_minutes)),
+        theme.muted(),
+    )));
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled("next", theme.muted())));
 
-    f.render_widget(panel, area);
+    if let Some(block) = next {
+        lines.push(Line::from(vec![
+            Span::styled(format!("{:<8}", block.timing), theme.faint()),
+            Span::styled(block.title.clone(), theme.muted()),
+        ]));
+    } else {
+        lines.push(Line::from(Span::styled("Nothing queued", theme.faint())));
+    }
+
+    f.render_widget(Paragraph::new(lines), area);
 }
 
-fn render_tasks(f: &mut Frame, app: &AppState, area: Rect) {
-    let items: Vec<ListItem> = app
-        .day
-        .active_tasks()
-        .iter()
-        .map(|task| {
-            let marker = if task.priority { "!" } else { " " };
+fn render_queue(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let tasks = app.day.active_tasks();
 
-            let task_style = if task.priority {
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            };
+    if tasks.is_empty() {
+        let empty = Paragraph::new(vec![
+            Line::from(Span::styled("queue", theme.accent())),
+            Line::from(""),
+            Line::from(Span::styled("no active tasks", theme.muted())),
+            Line::from(Span::styled(
+                ": add task     define the next move",
+                theme.faint(),
+            )),
+        ]);
 
-            let status = match task.status {
-                TaskStatus::Open => "open",
-                TaskStatus::Done => "done",
-                TaskStatus::Dropped => "drop",
-                TaskStatus::Removed => "rem",
-            };
+        f.render_widget(empty, area);
+        return;
+    }
 
-            ListItem::new(Line::from(vec![
-                Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Cyan)),
-                Span::styled(task.title.clone(), task_style),
-                Span::styled(format!(" {}", status), Style::default().fg(Color::DarkGray)),
-            ]))
-        })
-        .collect();
+    let mut items = Vec::new();
+
+    items.push(ListItem::new(Line::from(Span::styled(
+        "queue",
+        theme.accent(),
+    ))));
+    items.push(ListItem::new(Line::from("")));
+
+    for task in tasks {
+        let style = if task.priority {
+            theme.priority()
+        } else {
+            theme.text()
+        };
+
+        // let prefix = if task.priority { "  " } else { "  " };
+        let prefix = "  ";
+
+        let status = match task.status {
+            TaskStatus::Open => "",
+            TaskStatus::Done => "done",
+            TaskStatus::Dropped => "dropped",
+            TaskStatus::Removed => "removed",
+        };
+
+        items.push(ListItem::new(Line::from(vec![
+            Span::styled(prefix, theme.faint()),
+            Span::styled(task.title.clone(), style),
+            Span::styled(format!(" {}", status), theme.faint()),
+        ])));
+    }
 
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" TASK QUEUE "))
-        .highlight_symbol(">> ")
-        .highlight_style(
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        );
+        .highlight_symbol("| ")
+        .highlight_style(theme.selected());
 
     let mut state = app.task_state;
     f.render_stateful_widget(list, area, &mut state);
+}
+
+fn format_minutes(minutes: u32) -> String {
+    if minutes < 60 {
+        return format!("{}m", minutes);
+    }
+
+    let hours = minutes / 60;
+    let rem = minutes % 60;
+
+    if rem == 0 {
+        format!("{}h", hours)
+    } else {
+        format!("{}h {}m", hours, rem)
+    }
 }

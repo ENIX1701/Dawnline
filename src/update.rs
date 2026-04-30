@@ -247,7 +247,7 @@ fn handle_command_mode(app: &mut AppState, action: Action) -> Option<Command> {
 }
 
 fn handle_char_input(app: &mut AppState, c: char) -> Option<Command> {
-    match c {
+    match c.to_ascii_lowercase() {
         'q' => return Some(Command::Quit),
         'a' | ':' => {
             app.command_mode = true;

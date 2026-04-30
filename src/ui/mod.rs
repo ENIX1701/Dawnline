@@ -1,8 +1,6 @@
 use crate::state::{AppState, CurrentScreen};
-use ratatui::{
-    prelude::*,
-    widgets::{Block, Borders, Clear, Paragraph, Tabs},
-};
+use crate::theme::DawnTheme;
+use ratatui::{prelude::*, widgets::Paragraph};
 
 pub mod execute;
 pub mod palette;
@@ -10,16 +8,18 @@ pub mod plan;
 pub mod review;
 
 pub fn draw(f: &mut Frame, app: &AppState) {
+    let theme = DawnTheme::dawn();
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3),
             Constraint::Min(1),
-            Constraint::Length(3),
+            Constraint::Length(1),
         ])
         .split(f.area());
 
-    render_header(f, app, chunks[0]);
+    render_header(f, app, chunks[0], theme);
 
     match app.current_screen {
         CurrentScreen::Plan => plan::render(f, app, chunks[1]),
@@ -27,128 +27,132 @@ pub fn draw(f: &mut Frame, app: &AppState) {
         CurrentScreen::Review => review::render(f, app, chunks[1]),
     }
 
-    render_footer(f, app, chunks[2]);
+    render_footer(f, app, chunks[2], theme);
 
     if app.command_mode {
-        render_command(f, app);
+        palette::render_command(f, app);
     }
 
     if app.show_help {
-        render_help(f);
+        palette::render_help(f);
     }
 }
 
-fn render_header(f: &mut Frame, app: &AppState, area: Rect) {
-    let titles = vec![" PLAN ", " EXECUTE ", " REVIEW "];
-
-    let current_index = match app.current_screen {
-        CurrentScreen::Plan => 0,
-        CurrentScreen::Execute => 1,
-        CurrentScreen::Review => 2,
-    };
-
-    let tabs = Tabs::new(titles)
-        .block(Block::default().borders(Borders::ALL).title(" DAWNLINE "))
-        .select(current_index)
-        .style(Style::default().fg(Color::Cyan))
-        .highlight_style(
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD)
-                .bg(Color::DarkGray),
-        );
-
-    f.render_widget(tabs, area);
-}
-
-fn render_footer(f: &mut Frame, app: &AppState, area: Rect) {
-    let line = Line::from(vec![
-        Span::styled("enter", Style::default().fg(Color::Cyan)),
-        Span::raw(" execute  "),
-        Span::styled(":", Style::default().fg(Color::Cyan)),
-        Span::raw(" command  "),
-        Span::styled("space", Style::default().fg(Color::Cyan)),
-        Span::raw(" done  "),
-        Span::styled("s", Style::default().fg(Color::Cyan)),
-        Span::raw(" start  "),
-        Span::styled("d", Style::default().fg(Color::Cyan)),
-        Span::raw(" drop  "),
-        Span::styled("f", Style::default().fg(Color::Cyan)),
-        Span::raw(" finish  "),
-        Span::styled("?", Style::default().fg(Color::Cyan)),
-        Span::raw(" help  "),
-        Span::styled("q", Style::default().fg(Color::Cyan)),
-        Span::raw(" quit  "),
-        Span::styled("| ", Style::default().fg(Color::DarkGray)),
-        Span::raw(app.status_message.clone()),
-    ]);
-
-    let footer = Paragraph::new(line).block(Block::default().borders(Borders::ALL));
-    f.render_widget(footer, area);
-}
-
-fn render_command(f: &mut Frame, app: &AppState) {
-    let area = centered_rect(70, 20, f.area());
-    f.render_widget(Clear, area);
-
-    let input = Paragraph::new(Line::from(vec![
-        Span::styled(": ", Style::default().fg(Color::Cyan)),
-        Span::styled(
-            format!("{}█", app.command_buffer),
-            Style::default().fg(Color::White),
-        ),
-    ]))
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow))
-            .title(" COMMAND "),
-    );
-
-    f.render_widget(input, area);
-}
-
-fn render_help(f: &mut Frame) {
-    let area = centered_rect(60, 55, f.area());
-    f.render_widget(Clear, area);
-
-    let lines = vec![
-        Line::from("enter     begin execution"),
-        Line::from("f         enter review"),
-        Line::from(":         command palette"),
-        Line::from("space     complete selected task"),
-        Line::from("s         start selected block"),
-        Line::from("d         drop selected task"),
-        Line::from("x         remove selected task"),
-        Line::from("?         toggle help"),
-        Line::from("1         quit"),
-    ];
-
-    let help = Paragraph::new(lines)
-        .wrap(ratatui::widgets::Wrap { trim: true })
-        .block(Block::default().borders(Borders::ALL).title(" HELP "));
-
-    f.render_widget(help, area);
-}
-
-fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
-    let vertical = Layout::default()
+fn render_header(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
         ])
         .split(area);
 
-    let horizontal = Layout::default()
+    let columns = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Length(14),
+            Constraint::Min(1),
+            Constraint::Length(12),
         ])
-        .split(vertical[1]);
+        .split(rows[0]);
 
-    horizontal[1]
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled("dawnline", theme.accent()))),
+        columns[0],
+    );
+
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled("know what matters", theme.muted())))
+            .alignment(Alignment::Center),
+        columns[1],
+    );
+
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled(
+            app.day.date.format("%a %d %b").to_string(),
+            theme.muted(),
+        )))
+        .alignment(Alignment::Right),
+        columns[2],
+    );
+
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled(
+            "-".repeat(rows[1].width as usize),
+            theme.muted(),
+        )))
+        .alignment(Alignment::Center),
+        rows[1],
+    );
+
+    f.render_widget(Paragraph::new(flow_line(app, theme)), rows[2]);
+}
+
+fn flow_line(app: &AppState, theme: DawnTheme) -> Line<'static> {
+    let plan = if app.current_screen == CurrentScreen::Plan {
+        Span::styled("Plan", theme.accent())
+    } else {
+        Span::styled("Plan", theme.muted())
+    };
+
+    let execute = if app.current_screen == CurrentScreen::Execute {
+        Span::styled("Execute", theme.accent())
+    } else {
+        Span::styled("Execute", theme.muted())
+    };
+
+    let review = if app.current_screen == CurrentScreen::Review {
+        Span::styled("Review", theme.accent())
+    } else {
+        Span::styled("Review", theme.muted())
+    };
+
+    Line::from(vec![
+        plan,
+        Span::styled(" -> ", theme.faint()),
+        execute,
+        Span::styled(" -> ", theme.faint()),
+        review,
+    ])
+}
+
+fn render_footer(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let mut spans = Vec::new();
+
+    match app.current_screen {
+        CurrentScreen::Plan => {
+            push_hint(&mut spans, theme, "tab", "pane");
+            push_hint(&mut spans, theme, "a", "add");
+            push_hint(&mut spans, theme, "s", "start");
+            push_hint(&mut spans, theme, "enter", "execute");
+        }
+        CurrentScreen::Execute => {
+            push_hint(&mut spans, theme, "space", "done");
+            push_hint(&mut spans, theme, "f", "finish");
+            push_hint(&mut spans, theme, ":", "command");
+        }
+        CurrentScreen::Review => {
+            push_hint(&mut spans, theme, "f", "finish day");
+            push_hint(&mut spans, theme, ":", "command");
+        }
+    }
+
+    push_hint(&mut spans, theme, "?", "help");
+    push_hint(&mut spans, theme, "q", "quit");
+
+    spans.push(Span::styled(" | ", theme.faint()));
+    spans.push(Span::styled(app.status_message.clone(), theme.muted()));
+
+    f.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+fn push_hint(
+    spans: &mut Vec<Span<'static>>,
+    theme: DawnTheme,
+    key: &'static str,
+    label: &'static str,
+) {
+    spans.push(Span::styled(key, theme.accent()));
+    spans.push(Span::styled(format!(" {}  ", label), theme.muted()));
 }

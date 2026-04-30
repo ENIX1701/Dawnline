@@ -98,7 +98,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
 
     let mut app = AppState::from_day(store.load_state()?);
     let tick_rate = Duration::from_millis(250);
-    let mut last_tick = Instant::now();
+    let last_tick = Instant::now();
 
     loop {
         terminal.draw(|f| ui::draw(f, &app))?;
@@ -107,30 +107,30 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
 
-        if event::poll(timeout)? {
-            if let CEvent::Key(key) = event::read()? {
-                let action = match key.code {
-                    KeyCode::Char(':') => Action::OpenCommand,
-                    KeyCode::Char('?') => Action::ToggleHelp,
-                    KeyCode::Char('q') => Action::Quit,
-                    KeyCode::Char(c) => Action::Char(c),
-                    KeyCode::Enter => Action::Enter,
-                    KeyCode::Esc => Action::Esc,
-                    KeyCode::Backspace => Action::Backspace,
-                    KeyCode::Up => Action::Up,
-                    KeyCode::Down => Action::Down,
-                    KeyCode::Left => Action::Left,
-                    KeyCode::Right => Action::Right,
-                    KeyCode::Tab => Action::NextTab,
-                    KeyCode::BackTab => Action::PrevTab,
-                    _ => Action::Tick,
-                };
+        if event::poll(timeout)?
+            && let CEvent::Key(key) = event::read()?
+        {
+            let action = match key.code {
+                KeyCode::Char(':') => Action::OpenCommand,
+                KeyCode::Char('?') => Action::ToggleHelp,
+                KeyCode::Char('q') => Action::Quit,
+                KeyCode::Char(c) => Action::Char(c),
+                KeyCode::Enter => Action::Enter,
+                KeyCode::Esc => Action::Esc,
+                KeyCode::Backspace => Action::Backspace,
+                KeyCode::Up => Action::Up,
+                KeyCode::Down => Action::Down,
+                KeyCode::Left => Action::Left,
+                KeyCode::Right => Action::Right,
+                KeyCode::Tab => Action::NextTab,
+                KeyCode::BackTab => Action::PrevTab,
+                _ => Action::Tick,
+            };
 
-                if let Some(command) = update::update(&mut app, action) {
-                    if process_command(command, &mut store, &mut app)? {
-                        return Ok(());
-                    }
-                }
+            if let Some(command) = update::update(&mut app, action)
+                && process_command(command, &mut store, &mut app)?
+            {
+                return Ok(());
             }
         }
     }

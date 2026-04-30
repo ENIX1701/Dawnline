@@ -110,6 +110,6 @@ fn render_tasks(f: &mut Frame, app: &AppState, area: Rect) {
                 .add_modifier(Modifier::BOLD),
         );
 
-    let mut state = app.task_state.clone();
+    let mut state = app.task_state;
     f.render_stateful_widget(list, area, &mut state);
 }

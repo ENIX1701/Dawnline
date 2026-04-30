@@ -68,64 +68,64 @@ fn render_timeline(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) 
     };
     let rail = if active { "| " } else { "  " };
 
-    let mut items = vec![
-        ListItem::new(Line::from(vec![
-            Span::styled(rail, theme.accent()),
-            Span::styled("timeline", title_style),
-        ])),
-        ListItem::new(Line::from(Span::styled("--------", theme.faint()))),
-    ];
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(1)])
+        .split(area);
+
+    f.render_widget(
+        Paragraph::new(vec![
+            Line::from(vec![
+                Span::styled(rail, theme.accent()),
+                Span::styled("timeline", title_style),
+            ]),
+            Line::from(Span::styled("  --------", theme.faint())),
+            Line::from(""),
+        ]),
+        rows[0],
+    );
 
     if app.day.blocks.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "no line set for today",
-            theme.muted(),
-        ))));
-        items.push(ListItem::new(Line::from(Span::styled(
-            ": add block now     define the first move",
-            theme.faint(),
-        ))));
+        f.render_widget(
+            Paragraph::new(vec![
+                Line::from(Span::styled("no line set for today", theme.muted())),
+                Line::from(Span::styled(
+                    ": add block now     define the first move",
+                    theme.faint(),
+                )),
+            ]),
+            rows[1],
+        );
+        return;
     }
 
-    for block in &app.day.blocks {
-        let title_style = match block.status {
-            BlockStatus::Planned => theme.text(),
-            BlockStatus::Active => theme.accent(),
-            BlockStatus::Done => theme.muted(),
-        };
+    let items: Vec<ListItem> = app
+        .day
+        .blocks
+        .iter()
+        .map(|block| {
+            let title_style = match block.status {
+                BlockStatus::Planned => theme.text(),
+                BlockStatus::Active => theme.accent(),
+                BlockStatus::Done => theme.muted(),
+            };
 
-        items.push(ListItem::new(Line::from(vec![
-            Span::styled(format!("{:<8}", block.timing), theme.muted()),
-            Span::styled(block.title.clone(), title_style),
-        ])));
-
-        if block.status == BlockStatus::Active
-            && let Some(intent) = &block.intent
-        {
-            items.push(ListItem::new(Line::from(vec![
-                Span::styled("        ", theme.faint()),
-                Span::styled(format!("intent: {}", intent), theme.muted()),
-            ])));
-        }
-    }
+            ListItem::new(Line::from(vec![
+                Span::styled(format!("{:<8}", block.timing), theme.muted()),
+                Span::styled(block.title.clone(), title_style),
+            ]))
+        })
+        .collect();
 
     let list = List::new(items)
         .highlight_symbol(if active { "| " } else { "  " })
         .highlight_style(theme.selected());
 
     let mut state = app.block_state;
-    f.render_stateful_widget(list, area, &mut state);
+    f.render_stateful_widget(list, rows[1], &mut state);
 }
 
 fn render_tasks(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
-    let tasks = app.day.active_tasks();
-    let priority: Vec<&Task> = tasks.iter().copied().filter(|task| task.priority).collect();
-    let normal: Vec<&Task> = tasks
-        .iter()
-        .copied()
-        .filter(|task| !task.priority)
-        .collect();
-
     let active = app.active_pane == ActivePane::Tasks;
     let title_style = if active {
         theme.accent()
@@ -134,50 +134,60 @@ fn render_tasks(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     };
     let rail = if active { "| " } else { "  " };
 
-    let mut items = vec![
-        ListItem::new(Line::from(vec![
-            Span::styled(rail, theme.accent()),
-            Span::styled("tasks", title_style),
-        ])),
-        ListItem::new(Line::from(Span::styled("------------", theme.faint()))),
-        ListItem::new(Line::from("")),
-        ListItem::new(Line::from(Span::styled("  priority", theme.muted()))),
-    ];
+    let tasks = app.day.active_tasks();
+    let priority_count = tasks.iter().filter(|task| task.priority).count();
+    let normal_count = tasks.len().saturating_sub(priority_count);
 
-    if priority.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "none",
-            theme.faint(),
-        ))));
-    } else {
-        for task in priority {
-            items.push(task_line(task, theme.priority()));
-        }
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(4), Constraint::Min(1)])
+        .split(area);
+
+    f.render_widget(
+        Paragraph::new(vec![
+            Line::from(vec![
+                Span::styled(rail, theme.accent()),
+                Span::styled("tasks", title_style),
+            ]),
+            Line::from(Span::styled("  ------------", theme.faint())),
+            Line::from(vec![
+                Span::styled("  priority ", theme.muted()),
+                Span::styled(priority_count.to_string(), theme.faint()),
+                Span::styled("   queue ", theme.muted()),
+                Span::styled(normal_count.to_string(), theme.faint()),
+            ]),
+            Line::from(""),
+        ]),
+        rows[0],
+    );
+
+    if tasks.is_empty() {
+        f.render_widget(
+            Paragraph::new(Line::from(Span::styled("empty", theme.faint()))),
+            rows[1],
+        );
+        return;
     }
 
-    items.push(ListItem::new(Line::from("")));
-    items.push(ListItem::new(Line::from(Span::styled(
-        "queue",
-        theme.muted(),
-    ))));
+    let items: Vec<ListItem> = tasks
+        .into_iter()
+        .map(|task| {
+            let style = if task.priority {
+                theme.priority()
+            } else {
+                theme.text()
+            };
 
-    if normal.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "empty",
-            theme.faint(),
-        ))));
-    } else {
-        for task in normal {
-            items.push(task_line(task, theme.text()));
-        }
-    }
+            task_line(task, style)
+        })
+        .collect();
 
     let list = List::new(items)
         .highlight_symbol(if active { "| " } else { "  " })
         .highlight_style(theme.selected());
 
     let mut state = app.task_state;
-    f.render_stateful_widget(list, area, &mut state);
+    f.render_stateful_widget(list, rows[1], &mut state);
 }
 
 fn task_line(task: &Task, style: Style) -> ListItem<'static> {

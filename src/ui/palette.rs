@@ -65,7 +65,7 @@ pub fn render_help(f: &mut Frame) {
     let lines = vec![
         Line::from(Span::styled("Help", theme.accent())),
         Line::from(Span::styled(
-            "--------".repeat(area.width as usize),
+            "-".repeat(inner.width as usize),
             theme.faint(),
         )),
         help_line(theme, "enter", "begin execution from plan"),
@@ -77,11 +77,11 @@ pub fn render_help(f: &mut Frame) {
         Line::from(""),
         Line::from(vec![
             Span::styled(":", theme.accent()),
-            Span::styled(" command    ", theme.accent()),
+            Span::styled(" command    ", theme.muted()),
             Span::styled("?", theme.accent()),
-            Span::styled(" help    ", theme.accent()),
+            Span::styled(" help    ", theme.muted()),
             Span::styled("q", theme.accent()),
-            Span::styled(" quit    ", theme.accent()),
+            Span::styled(" quit    ", theme.muted()),
         ]),
     ];
 

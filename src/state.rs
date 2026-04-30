@@ -129,11 +129,10 @@ impl AppState {
     }
 
     pub fn start_execution(&mut self) {
-        self.active_pane = ActivePane::Tasks;
-
         match self.current_screen {
             CurrentScreen::Plan => {
                 self.current_screen = CurrentScreen::Execute;
+                self.active_pane = ActivePane::Tasks;
                 self.status_message = "execute. time to get things done.".to_string();
             }
             CurrentScreen::Execute => {
@@ -152,6 +151,24 @@ impl AppState {
             CurrentScreen::Review => "review done. start a new session later.".to_string(),
         };
     }
+
+    pub fn sync_selection(&mut self) {
+        let block_len = self.visible_blocks().len();
+        let task_len = self.visible_tasks().len();
+
+        clamp_selection(&mut self.block_state, block_len);
+        clamp_selection(&mut self.task_state, task_len);
+    }
+}
+
+fn clamp_selection(state: &mut ListState, len: usize) {
+    if len == 0 {
+        state.select(None);
+        return;
+    }
+
+    let selected = state.selected().unwrap_or(0);
+    state.select(Some(selected.min(len - 1)));
 }
 
 fn select_next(state: &mut ListState, len: usize) {

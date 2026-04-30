@@ -147,10 +147,19 @@ fn process_command(command: Command, store: &mut EventStore, app: &mut AppState)
         Command::AppendEvent(event) => {
             store.append(event)?;
             app.day = store.load_state()?;
+            app.sync_selection();
+        }
+        Command::AppendEvents(events) => {
+            for event in events {
+                store.append(event)?;
+            }
+            app.day = store.load_state()?;
+            app.sync_selection();
         }
         Command::RunPalette(input) => {
             let message = store.run_palette_command(&input)?;
             app.day = store.load_state()?;
+            app.sync_selection();
             app.command_buffer.clear();
             app.command_mode = false;
             app.status_message = message;

@@ -6,6 +6,7 @@ use crate::state::{ActivePane, AppState, CurrentScreen};
 pub enum Command {
     Quit,
     AppendEvent(Event),
+    AppendEvents(Vec<Event>),
     RunPalette(String),
 }
 
@@ -42,32 +43,70 @@ pub fn update(app: &mut AppState, action: Action) -> Option<Command> {
             return Some(Command::RunPalette(app.command_buffer.clone()));
         }
         Action::StartSelectedBlock => {
-            if let Some(block_id) = app.selected_block_id() {
-                return Some(Command::AppendEvent(Event::new(EventKind::BlockStarted {
-                    block_id,
-                })));
+            if app.active_pane != ActivePane::Timeline {
+                app.status_message = "select timeline to start a block".to_string();
+                return None;
             }
+
+            if let Some(block_id) = app.selected_block_id() {
+                let mut events = Vec::new();
+
+                if let Some(active_id) = app.day.active_block().map(|block| block.id)
+                    && active_id != block_id
+                {
+                    events.push(Event::new(EventKind::BlockFinished {
+                        block_id: active_id,
+                    }));
+                }
+
+                events.push(Event::new(EventKind::BlockStarted { block_id }));
+
+                return Some(Command::AppendEvents(events));
+            }
+
+            app.status_message = "no block selected".to_string();
         }
         Action::CompleteSelectedTask => {
+            if app.active_pane != ActivePane::Tasks {
+                app.status_message = "select tasks to complete a task".to_string();
+                return None;
+            }
+
             if let Some(task_id) = app.selected_task_id() {
                 return Some(Command::AppendEvent(Event::new(EventKind::TaskCompleted {
                     task_id,
                 })));
             }
+
+            app.status_message = "no task selected".to_string();
         }
         Action::DropSelectedTask => {
+            if app.active_pane != ActivePane::Tasks {
+                app.status_message = "select tasks to drop a task".to_string();
+                return None;
+            }
+
             if let Some(task_id) = app.selected_task_id() {
                 return Some(Command::AppendEvent(Event::new(EventKind::TaskDropped {
                     task_id,
                 })));
             }
+
+            app.status_message = "no task selected".to_string();
         }
         Action::RemoveSelectedTask => {
+            if app.active_pane != ActivePane::Tasks {
+                app.status_message = "select tasks to remove a task".to_string();
+                return None;
+            }
+
             if let Some(task_id) = app.selected_task_id() {
                 return Some(Command::AppendEvent(Event::new(EventKind::TaskRemoved {
                     task_id,
                 })));
             }
+
+            app.status_message = "no task selected".to_string();
         }
         Action::FinishSession => {
             if app.current_screen != CurrentScreen::Execute {
@@ -78,11 +117,21 @@ pub fn update(app: &mut AppState, action: Action) -> Option<Command> {
             app.current_screen = CurrentScreen::Review;
             app.status_message = "review - finish with a clear record".to_string();
 
-            if let Some(session_id) = app.day.current_session_id {
-                return Some(Command::AppendEvent(Event::new(
-                    EventKind::SessionFinished { session_id },
-                )));
+            let mut events = Vec::new();
+
+            if let Some(block_id) = app.day.active_block().map(|block| block.id) {
+                events.push(Event::new(EventKind::BlockFinished { block_id }));
             }
+
+            if let Some(session_id) = app.day.current_session_id {
+                events.push(Event::new(EventKind::SessionFinished { session_id }));
+            }
+
+            if events.is_empty() {
+                return None;
+            }
+
+            return Some(Command::AppendEvents(events));
         }
         Action::FinishDay => {
             if app.current_screen != CurrentScreen::Review {

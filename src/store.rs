@@ -174,12 +174,22 @@ impl EventStore {
             .find(|block| block.title.to_lowercase().contains(&query))
             .map(|block| block.id);
 
-        if let Some(block_id) = block_id {
-            self.append(Event::new(EventKind::BlockStarted { block_id }))?;
-            return Ok(true);
+        let Some(block_id) = block_id else {
+            return Ok(false);
+        };
+
+        if let Some(active_id) = state.active_block().map(|block| block.id) {
+            if active_id == block_id {
+                return Ok(true);
+            }
+
+            self.append(Event::new(EventKind::BlockFinished {
+                block_id: active_id,
+            }))?;
         }
 
-        Ok(false)
+        self.append(Event::new(EventKind::BlockStarted { block_id }))?;
+        Ok(true)
     }
 
     fn complete_task(&mut self, task_ref: &str) -> Result<bool> {
@@ -239,6 +249,10 @@ impl EventStore {
 
     pub fn finish_session(&mut self) -> Result<()> {
         let state = self.load_state()?;
+
+        if let Some(block_id) = state.active_block().map(|block| block.id) {
+            self.append(Event::new(EventKind::BlockFinished { block_id }))?;
+        }
 
         if let Some(session_id) = state.current_session_id {
             self.append(Event::new(EventKind::SessionFinished { session_id }))?;
@@ -327,11 +341,14 @@ fn looks_like_time(value: &str) -> bool {
     let hour = parts.next().unwrap_or_default();
     let minutes = parts.next().unwrap_or_default();
 
-    parts.next().is_none()
-        && hour.len() <= 2
-        && minutes.len() == 2
-        && hour.chars().all(|c| c.is_ascii_digit())
-        && minutes.chars().all(|c| c.is_ascii_digit())
+    let Ok(hour) = hour.parse::<u32>() else {
+        return false;
+    };
+    let Ok(minutes) = minutes.parse::<u32>() else {
+        return false;
+    };
+
+    hour < 24 && minutes < 60
 }
 
 fn loose_label(value: &str) -> Option<String> {

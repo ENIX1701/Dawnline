@@ -14,7 +14,7 @@ impl DawnTheme {
         Self {
             fg: Color::Rgb(218, 216, 207),
             muted: Color::Rgb(142, 139, 132),
-            faint: Color::Rgb(72, 70, 132),
+            faint: Color::Rgb(72, 70, 67),
             accent: Color::Rgb(213, 183, 122),
             soft: Color::Rgb(174, 184, 178),
         }

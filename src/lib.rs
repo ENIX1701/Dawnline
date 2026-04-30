@@ -1,4 +1,5 @@
 pub mod action;
+pub mod config;
 pub mod models;
 pub mod state;
 pub mod store;

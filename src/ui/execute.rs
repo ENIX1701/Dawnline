@@ -1,4 +1,4 @@
-use crate::models::{BlockStatus, TaskStatus};
+use crate::models::BlockStatus;
 use crate::state::{ActivePane, AppState};
 use crate::theme::DawnTheme;
 use ratatui::{
@@ -6,9 +6,7 @@ use ratatui::{
     widgets::{List, ListItem, Paragraph},
 };
 
-pub fn render(f: &mut Frame, app: &AppState, area: Rect) {
-    let theme = DawnTheme::dawn();
-
+pub fn render(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let area = area.inner(Margin {
         horizontal: 2,
         vertical: 1,
@@ -73,70 +71,69 @@ fn render_now(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
 }
 
 fn render_queue(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let active = app.active_pane == ActivePane::Tasks;
+    let title_style = if active {
+        theme.accent()
+    } else {
+        theme.muted()
+    };
+    let rail = if active { "| " } else { "  " };
+
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(1)])
+        .split(area);
+
+    f.render_widget(
+        Paragraph::new(vec![
+            Line::from(vec![
+                Span::styled(rail, theme.accent()),
+                Span::styled("queue", title_style),
+            ]),
+            Line::from(Span::styled("  ------------", theme.faint())),
+            Line::from(""),
+        ]),
+        rows[0],
+    );
+
     let tasks = app.day.active_tasks();
 
     if tasks.is_empty() {
-        let empty = Paragraph::new(vec![
-            Line::from(Span::styled("queue", theme.accent())),
-            Line::from(""),
-            Line::from(Span::styled("no active tasks", theme.muted())),
-            Line::from(Span::styled(
-                ": add task     define the next move",
-                theme.faint(),
-            )),
-        ]);
-
-        f.render_widget(empty, area);
+        f.render_widget(
+            Paragraph::new(vec![
+                Line::from(Span::styled("no active tasks", theme.muted())),
+                Line::from(Span::styled(
+                    ": add task     define the next move",
+                    theme.faint(),
+                )),
+            ]),
+            rows[1],
+        );
         return;
     }
 
-    let mut items = Vec::new();
-    let active = app.active_pane == ActivePane::Tasks;
-    let rail = if active { "| " } else { "  " };
-
-    items.push(ListItem::new(Line::from(vec![
-        Span::styled(rail, theme.accent()),
-        Span::styled(
-            "queue",
-            if active {
-                theme.accent()
+    let items: Vec<ListItem> = tasks
+        .into_iter()
+        .map(|task| {
+            let style = if task.priority {
+                theme.priority()
             } else {
-                theme.muted()
-            },
-        ),
-    ])));
-    items.push(ListItem::new(Line::from("")));
+                theme.text()
+            };
 
-    for task in tasks {
-        let style = if task.priority {
-            theme.priority()
-        } else {
-            theme.text()
-        };
-
-        // let prefix = if task.priority { "  " } else { "  " };
-        let prefix = "  ";
-
-        let status = match task.status {
-            TaskStatus::Open => "",
-            TaskStatus::Done => "done",
-            TaskStatus::Dropped => "dropped",
-            TaskStatus::Removed => "removed",
-        };
-
-        items.push(ListItem::new(Line::from(vec![
-            Span::styled(prefix, theme.faint()),
-            Span::styled(task.title.clone(), style),
-            Span::styled(format!(" {}", status), theme.faint()),
-        ])));
-    }
+            ListItem::new(Line::from(vec![
+                Span::styled("  ", theme.faint()),
+                Span::styled(task.title.clone(), style),
+            ]))
+        })
+        .collect();
 
     let list = List::new(items)
         .highlight_symbol(if active { "| " } else { "  " })
         .highlight_style(theme.selected());
 
     let mut state = app.task_state;
-    f.render_stateful_widget(list, area, &mut state);
+    f.render_stateful_widget(list, rows[1], &mut state);
 }
 
 fn format_minutes(minutes: u32) -> String {

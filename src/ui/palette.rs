@@ -5,8 +5,7 @@ use ratatui::{
     widgets::{Clear, Paragraph},
 };
 
-pub fn render_command(f: &mut Frame, app: &AppState) {
-    let theme = DawnTheme::dawn();
+pub fn render_command(f: &mut Frame, app: &AppState, theme: DawnTheme) {
     let root = f.area();
     let height = 3;
     let area = Rect {
@@ -29,7 +28,7 @@ pub fn render_command(f: &mut Frame, app: &AppState) {
 
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(
-            "─".repeat(rows[0].width as usize),
+            "-".repeat(rows[0].width as usize),
             theme.faint(),
         ))),
         rows[0],
@@ -44,8 +43,7 @@ pub fn render_command(f: &mut Frame, app: &AppState) {
     );
 }
 
-pub fn render_help(f: &mut Frame) {
-    let theme = DawnTheme::dawn();
+pub fn render_help(f: &mut Frame, theme: DawnTheme) {
     let root = f.area();
     let height = 12;
     let area = Rect {
@@ -63,7 +61,7 @@ pub fn render_help(f: &mut Frame) {
     });
 
     let lines = vec![
-        Line::from(Span::styled("Help", theme.accent())),
+        Line::from(Span::styled("help", theme.accent())),
         Line::from(Span::styled(
             "-".repeat(inner.width as usize),
             theme.faint(),
@@ -81,7 +79,7 @@ pub fn render_help(f: &mut Frame) {
             Span::styled("?", theme.accent()),
             Span::styled(" help    ", theme.muted()),
             Span::styled("q", theme.accent()),
-            Span::styled(" quit    ", theme.muted()),
+            Span::styled(" quit", theme.muted()),
         ]),
     ];
 

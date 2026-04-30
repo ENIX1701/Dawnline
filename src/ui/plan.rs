@@ -6,9 +6,7 @@ use ratatui::{
     widgets::{List, ListItem, Paragraph},
 };
 
-pub fn render(f: &mut Frame, app: &AppState, area: Rect) {
-    let theme = DawnTheme::dawn();
-
+pub fn render(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let area = area.inner(Margin {
         horizontal: 2,
         vertical: 1,

@@ -6,9 +6,7 @@ use ratatui::{
     widgets::{List, ListItem, Paragraph},
 };
 
-pub fn render(f: &mut Frame, app: &AppState, area: Rect) {
-    let theme = DawnTheme::dawn();
-
+pub fn render(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     if area.width < 94 {
         render_narrow(f, app, area, theme);
         return;

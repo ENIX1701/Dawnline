@@ -7,9 +7,7 @@ pub mod palette;
 pub mod plan;
 pub mod review;
 
-pub fn draw(f: &mut Frame, app: &AppState) {
-    let theme = DawnTheme::dawn();
-
+pub fn draw(f: &mut Frame, app: &AppState, theme: DawnTheme, tagline: &str) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -19,26 +17,26 @@ pub fn draw(f: &mut Frame, app: &AppState) {
         ])
         .split(f.area());
 
-    render_header(f, app, chunks[0], theme);
+    render_header(f, app, chunks[0], theme, tagline);
 
     match app.current_screen {
-        CurrentScreen::Plan => plan::render(f, app, chunks[1]),
-        CurrentScreen::Execute => execute::render(f, app, chunks[1]),
-        CurrentScreen::Review => review::render(f, app, chunks[1]),
+        CurrentScreen::Plan => plan::render(f, app, chunks[1], theme),
+        CurrentScreen::Execute => execute::render(f, app, chunks[1], theme),
+        CurrentScreen::Review => review::render(f, app, chunks[1], theme),
     }
 
     render_footer(f, app, chunks[2], theme);
 
     if app.command_mode {
-        palette::render_command(f, app);
+        palette::render_command(f, app, theme);
     }
 
     if app.show_help {
-        palette::render_help(f);
+        palette::render_help(f, theme);
     }
 }
 
-fn render_header(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+fn render_header(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme, tagline: &str) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -62,8 +60,14 @@ fn render_header(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
         columns[0],
     );
 
+    let tagline = if columns[1].width as usize >= tagline.len() {
+        tagline.to_string()
+    } else {
+        String::new()
+    };
+
     f.render_widget(
-        Paragraph::new(Line::from(Span::styled("know what matters", theme.muted())))
+        Paragraph::new(Line::from(Span::styled(tagline, theme.muted())))
             .alignment(Alignment::Center),
         columns[1],
     );
@@ -80,7 +84,7 @@ fn render_header(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(
             "-".repeat(rows[1].width as usize),
-            theme.muted(),
+            theme.faint(),
         )))
         .alignment(Alignment::Center),
         rows[1],

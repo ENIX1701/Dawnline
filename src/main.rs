@@ -5,8 +5,10 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use dawnline::action::Action;
+use dawnline::config::Config;
 use dawnline::state::AppState;
 use dawnline::store::EventStore;
+use dawnline::theme::DawnTheme;
 use dawnline::ui;
 use dawnline::update::{self, Command};
 use ratatui::{Terminal, backend::CrosstermBackend};
@@ -100,8 +102,11 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
     let tick_rate = Duration::from_millis(250);
     let mut last_tick = Instant::now();
 
+    let config = Config::load_or_create_default()?;
+    let theme = DawnTheme::named(&config.theme.name).with_accent_name(&config.theme.accent);
+
     loop {
-        terminal.draw(|f| ui::draw(f, &app))?;
+        terminal.draw(|f| ui::draw(f, &app, theme, &config.tagline))?;
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())

@@ -20,6 +20,47 @@ impl DawnTheme {
         }
     }
 
+    pub fn opal() -> Self {
+        Self {
+            fg: Color::Rgb(219, 224, 218),
+            muted: Color::Rgb(144, 151, 146),
+            faint: Color::Rgb(66, 72, 68),
+            accent: Color::Rgb(176, 207, 196),
+            soft: Color::Rgb(219, 188, 202),
+        }
+    }
+
+    pub fn mist() -> Self {
+        Self {
+            fg: Color::Rgb(215, 219, 223),
+            muted: Color::Rgb(139, 146, 153),
+            faint: Color::Rgb(65, 69, 74),
+            accent: Color::Rgb(170, 190, 215),
+            soft: Color::Rgb(201, 185, 214),
+        }
+    }
+
+    pub fn named(name: &str) -> Self {
+        match name.trim().to_ascii_lowercase().as_str() {
+            "opal" => Self::opal(),
+            "mist" => Self::mist(),
+            _ => Self::dawn(),
+        }
+    }
+
+    pub fn with_accent_name(mut self, accent: &str) -> Self {
+        self.accent = match accent.trim().to_ascii_lowercase().as_str() {
+            "gold" => Color::Rgb(213, 183, 122),
+            "rose" => Color::Rgb(219, 164, 176),
+            "sage" | "opal" => Color::Rgb(176, 207, 196),
+            "blue" | "mist" => Color::Rgb(170, 190, 215),
+            "lilac" => Color::Rgb(201, 185, 214),
+            _ => self.accent,
+        };
+
+        self
+    }
+
     pub fn text(self) -> Style {
         Style::default().fg(self.fg)
     }

@@ -3,13 +3,13 @@ use crate::state::{ActivePane, AppState};
 use crate::theme::DawnTheme;
 use ratatui::{
     prelude::*,
-    widgets::{List, ListItem, Paragraph},
+    widgets::{Block as WidgetBlock, Borders, List, ListItem, Paragraph},
 };
 
 pub fn render(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let area = area.inner(Margin {
-        horizontal: 2,
-        vertical: 1,
+        horizontal: 1,
+        vertical: 0,
     });
 
     if area.width < 92 {
@@ -30,7 +30,7 @@ pub fn render(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Percentage(55),
-            Constraint::Length(4),
+            Constraint::Length(2),
             Constraint::Percentage(45),
         ])
         .split(rows[0]);
@@ -59,6 +59,7 @@ fn render_narrow(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
 
 fn render_timeline(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let active = app.active_pane == ActivePane::Timeline;
+    let area = pane_area(f, area, theme, active);
     let title_style = if active {
         theme.accent()
     } else {
@@ -125,6 +126,7 @@ fn render_timeline(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) 
 
 fn render_tasks(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let active = app.active_pane == ActivePane::Tasks;
+    let area = pane_area(f, area, theme, active);
     let title_style = if active {
         theme.accent()
     } else {
@@ -196,6 +198,7 @@ fn task_line(task: &Task, style: Style) -> ListItem<'static> {
 }
 
 fn render_details(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let area = pane_area(f, area, theme, false);
     let selected = selected_block(app);
 
     let lines = if let Some(block) = selected {
@@ -241,4 +244,24 @@ fn selected_block(app: &AppState) -> Option<&Block> {
         .selected()
         .and_then(|index| app.day.blocks.get(index))
         .or_else(|| app.day.blocks.first())
+}
+
+fn pane_area(f: &mut Frame, area: Rect, theme: DawnTheme, active: bool) -> Rect {
+    if area.width < 6 || area.height < 3 {
+        return area;
+    }
+
+    let border_style = if active { theme.muted() } else { theme.faint() };
+
+    f.render_widget(
+        WidgetBlock::default()
+            .borders(Borders::ALL)
+            .border_style(border_style),
+        area,
+    );
+
+    area.inner(Margin {
+        horizontal: 2,
+        vertical: 1,
+    })
 }

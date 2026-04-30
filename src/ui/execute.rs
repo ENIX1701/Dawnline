@@ -3,20 +3,20 @@ use crate::state::{ActivePane, AppState};
 use crate::theme::DawnTheme;
 use ratatui::{
     prelude::*,
-    widgets::{List, ListItem, Paragraph},
+    widgets::{Block as WidgetBlock, Borders, List, ListItem, Paragraph},
 };
 
 pub fn render(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let area = area.inner(Margin {
-        horizontal: 2,
-        vertical: 1,
+        horizontal: 1,
+        vertical: 0,
     });
 
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Percentage(45),
-            Constraint::Length(4),
+            Constraint::Length(2),
             Constraint::Percentage(55),
         ])
         .split(area);
@@ -26,6 +26,14 @@ pub fn render(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
 }
 
 fn render_now(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let selected = app.active_pane == ActivePane::Timeline;
+    let area = pane_area(f, area, theme, selected);
+    let title_style = if selected {
+        theme.accent()
+    } else {
+        theme.muted()
+    };
+    let rail = if selected { "| " } else { "  " };
     let active = app.day.active_block();
     let next = app
         .day
@@ -34,7 +42,11 @@ fn render_now(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
         .find(|block| block.status == BlockStatus::Planned);
 
     let mut lines = vec![
-        Line::from(Span::styled("now", theme.accent())),
+        Line::from(vec![
+            Span::styled(rail, theme.accent()),
+            Span::styled("now", title_style),
+        ]),
+        Line::from(Span::styled("  ---", theme.faint())),
         Line::from(""),
         Line::from(Span::styled(
             active
@@ -72,6 +84,7 @@ fn render_now(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
 
 fn render_queue(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let active = app.active_pane == ActivePane::Tasks;
+    let area = pane_area(f, area, theme, active);
     let title_style = if active {
         theme.accent()
     } else {
@@ -149,4 +162,24 @@ fn format_minutes(minutes: u32) -> String {
     } else {
         format!("{}h {}m", hours, rem)
     }
+}
+
+fn pane_area(f: &mut Frame, area: Rect, theme: DawnTheme, active: bool) -> Rect {
+    if area.width < 6 || area.height < 3 {
+        return area;
+    }
+
+    let border_style = if active { theme.muted() } else { theme.faint() };
+
+    f.render_widget(
+        WidgetBlock::default()
+            .borders(Borders::ALL)
+            .border_style(border_style),
+        area,
+    );
+
+    area.inner(Margin {
+        horizontal: 2,
+        vertical: 1,
+    })
 }

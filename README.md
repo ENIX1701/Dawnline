@@ -184,7 +184,7 @@ cargo test --all-features
 
 ---
 
-> ![IMPORTANT]
+> [!IMPORTANT]
 > Dawnline is intentionally small.
 > 
 > The goal is not to manage you whole life. It's to make the current day easier to see. To make focus happen.

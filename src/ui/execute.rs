@@ -1,5 +1,5 @@
 use crate::models::{BlockStatus, TaskStatus};
-use crate::state::AppState;
+use crate::state::{ActivePane, AppState};
 use crate::theme::DawnTheme;
 use ratatui::{
     prelude::*,
@@ -9,13 +9,22 @@ use ratatui::{
 pub fn render(f: &mut Frame, app: &AppState, area: Rect) {
     let theme = DawnTheme::dawn();
 
+    let area = area.inner(Margin {
+        horizontal: 2,
+        vertical: 1,
+    });
+
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
+        .constraints([
+            Constraint::Percentage(45),
+            Constraint::Length(4),
+            Constraint::Percentage(55),
+        ])
         .split(area);
 
     render_now(f, app, chunks[0], theme);
-    render_queue(f, app, chunks[1], theme);
+    render_queue(f, app, chunks[2], theme);
 }
 
 fn render_now(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
@@ -82,11 +91,20 @@ fn render_queue(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     }
 
     let mut items = Vec::new();
+    let active = app.active_pane == ActivePane::Tasks;
+    let rail = if active { "| " } else { "  " };
 
-    items.push(ListItem::new(Line::from(Span::styled(
-        "queue",
-        theme.accent(),
-    ))));
+    items.push(ListItem::new(Line::from(vec![
+        Span::styled(rail, theme.accent()),
+        Span::styled(
+            "queue",
+            if active {
+                theme.accent()
+            } else {
+                theme.muted()
+            },
+        ),
+    ])));
     items.push(ListItem::new(Line::from("")));
 
     for task in tasks {
@@ -114,7 +132,7 @@ fn render_queue(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     }
 
     let list = List::new(items)
-        .highlight_symbol("| ")
+        .highlight_symbol(if active { "| " } else { "  " })
         .highlight_style(theme.selected());
 
     let mut state = app.task_state;

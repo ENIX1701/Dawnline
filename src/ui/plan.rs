@@ -1,5 +1,5 @@
 use crate::models::{Block, BlockStatus, Task};
-use crate::state::AppState;
+use crate::state::{ActivePane, AppState};
 use crate::theme::DawnTheme;
 use ratatui::{
     prelude::*,
@@ -9,6 +9,11 @@ use ratatui::{
 pub fn render(f: &mut Frame, app: &AppState, area: Rect) {
     let theme = DawnTheme::dawn();
 
+    let area = area.inner(Margin {
+        horizontal: 2,
+        vertical: 1,
+    });
+
     if area.width < 92 {
         render_narrow(f, app, area, theme);
         return;
@@ -16,38 +21,59 @@ pub fn render(f: &mut Frame, app: &AppState, area: Rect) {
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(7)])
+        .constraints([
+            Constraint::Min(1),
+            Constraint::Length(1),
+            Constraint::Length(7),
+        ])
         .split(area);
 
     let columns = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
+        .constraints([
+            Constraint::Percentage(55),
+            Constraint::Length(4),
+            Constraint::Percentage(45),
+        ])
         .split(rows[0]);
 
     render_timeline(f, app, columns[0], theme);
-    render_tasks(f, app, columns[1], theme);
-    render_details(f, app, rows[1], theme);
+    render_tasks(f, app, columns[2], theme);
+    render_details(f, app, rows[2], theme);
 }
 
 fn render_narrow(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(45),
-            Constraint::Percentage(35),
-            Constraint::Min(5),
+            Constraint::Percentage(40),
+            Constraint::Length(1),
+            Constraint::Percentage(32),
+            Constraint::Length(1),
+            Constraint::Min(6),
         ])
         .split(area);
 
     render_timeline(f, app, rows[0], theme);
-    render_tasks(f, app, rows[1], theme);
-    render_details(f, app, rows[2], theme);
+    render_tasks(f, app, rows[2], theme);
+    render_details(f, app, rows[4], theme);
 }
 
 fn render_timeline(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let active = app.active_pane == ActivePane::Timeline;
+    let title_style = if active {
+        theme.accent()
+    } else {
+        theme.muted()
+    };
+    let rail = if active { "| " } else { "  " };
+
     let mut items = vec![
-        ListItem::new(Line::from(Span::styled("timeline", theme.accent()))),
-        ListItem::new(Line::from(Span::styled("-------------", theme.faint()))),
+        ListItem::new(Line::from(vec![
+            Span::styled(rail, theme.accent()),
+            Span::styled("timeline", title_style),
+        ])),
+        ListItem::new(Line::from(Span::styled("--------", theme.faint()))),
     ];
 
     if app.day.blocks.is_empty() {
@@ -84,7 +110,7 @@ fn render_timeline(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) 
     }
 
     let list = List::new(items)
-        .highlight_symbol("| ")
+        .highlight_symbol(if active { "| " } else { "  " })
         .highlight_style(theme.selected());
 
     let mut state = app.block_state;
@@ -100,10 +126,22 @@ fn render_tasks(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
         .filter(|task| !task.priority)
         .collect();
 
+    let active = app.active_pane == ActivePane::Tasks;
+    let title_style = if active {
+        theme.accent()
+    } else {
+        theme.muted()
+    };
+    let rail = if active { "| " } else { "  " };
+
     let mut items = vec![
-        ListItem::new(Line::from(Span::styled("tasks", theme.accent()))),
+        ListItem::new(Line::from(vec![
+            Span::styled(rail, theme.accent()),
+            Span::styled("tasks", title_style),
+        ])),
         ListItem::new(Line::from(Span::styled("------------", theme.faint()))),
-        ListItem::new(Line::from(Span::styled("priority", theme.muted()))),
+        ListItem::new(Line::from("")),
+        ListItem::new(Line::from(Span::styled("  priority", theme.muted()))),
     ];
 
     if priority.is_empty() {
@@ -135,7 +173,7 @@ fn render_tasks(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     }
 
     let list = List::new(items)
-        .highlight_symbol("| ")
+        .highlight_symbol(if active { "| " } else { "  " })
         .highlight_style(theme.selected());
 
     let mut state = app.task_state;

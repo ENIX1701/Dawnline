@@ -1,12 +1,20 @@
 use crate::models::{BlockStatus, TaskStatus};
 use crate::state::AppState;
+use crate::theme::DawnTheme;
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{List, ListItem, Paragraph},
 };
 
 pub fn render(f: &mut Frame, app: &AppState, area: Rect) {
-    let chunks = Layout::default()
+    let theme = DawnTheme::dawn();
+
+    if area.width < 94 {
+        render_narrow(f, app, area, theme);
+        return;
+    }
+
+    let columns = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Percentage(40),
@@ -15,67 +23,99 @@ pub fn render(f: &mut Frame, app: &AppState, area: Rect) {
         ])
         .split(area);
 
-    render_completed(f, app, chunks[0]);
-    render_carry_forward(f, app, chunks[1]);
-    render_summary(f, app, chunks[2]);
+    render_completed(f, app, columns[0], theme);
+    render_carry_forward(f, app, columns[1], theme);
+    render_session(f, app, columns[2], theme);
 }
 
-fn render_completed(f: &mut Frame, app: &AppState, area: Rect) {
-    let items: Vec<ListItem> = app
+fn render_narrow(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(40),
+            Constraint::Percentage(30),
+            Constraint::Percentage(30),
+        ])
+        .split(area);
+
+    render_completed(f, app, rows[0], theme);
+    render_carry_forward(f, app, rows[1], theme);
+    render_session(f, app, rows[2], theme);
+}
+
+fn render_completed(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let mut items = vec![
+        ListItem::new(Line::from(Span::styled("completed", theme.accent()))),
+        ListItem::new(Line::from(Span::styled(
+            "-----------------------",
+            theme.faint(),
+        ))),
+    ];
+
+    let completed: Vec<_> = app
         .day
         .tasks
         .iter()
         .filter(|task| task.status == TaskStatus::Done)
-        .map(|task| {
-            ListItem::new(Line::from(vec![
-                Span::styled("[x] ", Style::default().fg(Color::Green)),
-                Span::raw(task.title.clone()),
-            ]))
-        })
         .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" COMPLETED "))
-        .highlight_symbol(">> ");
+    if completed.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "no completed tasks yet",
+            theme.muted(),
+        ))));
+    } else {
+        for task in completed {
+            items.push(ListItem::new(Line::from(vec![
+                Span::styled("  ", theme.faint()),
+                Span::styled(task.title.clone(), theme.text()),
+            ])));
+        }
+    }
 
-    f.render_widget(list, area);
+    f.render_widget(List::new(items), area);
 }
 
-fn render_carry_forward(f: &mut Frame, app: &AppState, area: Rect) {
-    let items: Vec<ListItem> = app
+fn render_carry_forward(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let mut items = vec![
+        ListItem::new(Line::from(Span::styled("carry forward", theme.accent()))),
+        ListItem::new(Line::from(Span::styled(
+            "-------------------------",
+            theme.faint(),
+        ))),
+    ];
+
+    let open: Vec<_> = app
         .day
         .tasks
         .iter()
         .filter(|task| task.status == TaskStatus::Open)
-        .map(|task| {
-            let marker = if task.priority { "!" } else { " " };
-            let style = if task.priority {
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            };
-
-            ListItem::new(Line::from(vec![
-                Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Cyan)),
-                Span::styled(task.title.clone(), style),
-            ]))
-        })
         .collect();
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" CARRY FORWARD "),
-        )
-        .highlight_symbol(">> ");
+    if open.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "nothing waiting",
+            theme.muted(),
+        ))));
+    } else {
+        for task in open {
+            let style = if task.priority {
+                theme.priority()
+            } else {
+                theme.text()
+            };
 
-    f.render_widget(list, area);
+            items.push(ListItem::new(Line::from(vec![
+                Span::styled("  ", theme.faint()),
+                Span::styled(task.title.clone(), style),
+            ])));
+        }
+    }
+
+    f.render_widget(List::new(items), area);
 }
 
-fn render_summary(f: &mut Frame, app: &AppState, area: Rect) {
+fn render_session(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let completed_blocks = app
         .day
         .blocks
@@ -90,41 +130,49 @@ fn render_summary(f: &mut Frame, app: &AppState, area: Rect) {
         .filter(|task| task.status == TaskStatus::Dropped)
         .count();
 
-    let lines = vec![
-        Line::from(Span::styled(
-            "Review",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(app.day.date.to_string()),
+    let mut lines = vec![
+        Line::from(Span::styled("session", theme.accent())),
+        Line::from(Span::styled("---------------", theme.faint())),
+        metric_line(theme, "focus time", format_minutes(app.day.focus_minutes)),
+        metric_line(theme, "blocks closed", completed_blocks.to_string()),
+        metric_line(theme, "tasks dropped", dropped.to_string()),
         Line::from(""),
-        Line::from(format!(
-            "Completed tasks: {}",
-            app.day.completed_tasks().len()
-        )),
-        Line::from(format!("Priority open: {}", app.day.priority_tasks().len())),
-        Line::from(format!("Completed blocks: {}", completed_blocks)),
-        Line::from(format!("Dropped tasks: {}", dropped)),
-        Line::from(format!("Focus time: {}m", app.day.focus_minutes)),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Notes",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        )),
+        Line::from(Span::styled("notes", theme.accent())),
+        Line::from(Span::styled("---------------", theme.faint())),
     ];
 
-    let mut all_lines = lines;
-
-    for note in &app.day.notes {
-        all_lines.push(Line::from(format!("- {}", note.text)));
+    if app.day.notes.is_empty() {
+        lines.push(Line::from(Span::styled("no notes", theme.muted())));
+    } else {
+        for note in &app.day.notes {
+            lines.push(Line::from(vec![
+                Span::styled("  ", theme.faint()),
+                Span::styled(note.text.clone(), theme.muted()),
+            ]));
+        }
     }
 
-    let panel = Paragraph::new(all_lines)
-        .wrap(ratatui::widgets::Wrap { trim: true })
-        .block(Block::default().borders(Borders::ALL).title(" SUMMARY "));
+    f.render_widget(Paragraph::new(lines), area);
+}
 
-    f.render_widget(panel, area);
+fn metric_line(theme: DawnTheme, label: &'static str, value: String) -> Line<'static> {
+    Line::from(vec![
+        Span::styled(format!("{:<15}", label), theme.muted()),
+        Span::styled(value, theme.text()),
+    ])
+}
+
+fn format_minutes(minutes: u32) -> String {
+    if minutes < 60 {
+        return format!("{}m", minutes);
+    }
+
+    let hours = minutes / 60;
+    let rem = minutes % 60;
+
+    if rem == 0 {
+        format!("{}h", hours)
+    } else {
+        format!("{}h {}m", hours, rem)
+    }
 }

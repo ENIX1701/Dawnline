@@ -1,4 +1,4 @@
-use crate::state::{AppState, CurrentScreen};
+use crate::state::{ActivePane, AppState, CurrentScreen};
 use crate::theme::DawnTheme;
 use chrono::Local;
 use ratatui::{prelude::*, widgets::Paragraph};
@@ -130,29 +130,54 @@ fn flow_line(app: &AppState, theme: DawnTheme) -> Line<'static> {
 fn render_footer(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
     let mut spans = Vec::new();
 
+    push_hint(&mut spans, theme, "tab", "pane");
+
     match app.current_screen {
         CurrentScreen::Plan => {
-            push_hint(&mut spans, theme, "tab", "pane");
-            push_hint(&mut spans, theme, "a", "add");
-            push_hint(&mut spans, theme, "s", "start");
+            match app.active_pane {
+                ActivePane::Timeline => {
+                    push_hint(&mut spans, theme, "s", "start");
+                    push_hint(&mut spans, theme, "a", "add");
+                }
+                ActivePane::Tasks => {
+                    push_hint(&mut spans, theme, "space", "done");
+                    push_hint(&mut spans, theme, "d", "drop");
+                    push_hint(&mut spans, theme, "x", "remove");
+                    push_hint(&mut spans, theme, "a", "add");
+                }
+                _ => {}
+            }
+
             push_hint(&mut spans, theme, "enter", "execute");
         }
         CurrentScreen::Execute => {
-            push_hint(&mut spans, theme, "space", "done");
+            match app.active_pane {
+                ActivePane::Timeline => {
+                    push_hint(&mut spans, theme, "s", "start");
+                }
+                ActivePane::Tasks => {
+                    push_hint(&mut spans, theme, "space", "done");
+                    push_hint(&mut spans, theme, "d", "drop");
+                    push_hint(&mut spans, theme, "x", "remove");
+                }
+                _ => {}
+            }
+
             push_hint(&mut spans, theme, "t", "focus");
             push_hint(&mut spans, theme, "f", "finish");
-            push_hint(&mut spans, theme, ":", "command");
         }
         CurrentScreen::Review => {
-            push_hint(&mut spans, theme, "tab", "pane");
-            push_hint(&mut spans, theme, "d", "drop");
-            push_hint(&mut spans, theme, "x", "remove");
+            if app.active_pane == ActivePane::CarryForward {
+                push_hint(&mut spans, theme, "d", "drop");
+                push_hint(&mut spans, theme, "x", "remove");
+            }
+
             push_hint(&mut spans, theme, "n", "new session");
             push_hint(&mut spans, theme, "f", "finish day");
-            push_hint(&mut spans, theme, ":", "command");
         }
     }
 
+    push_hint(&mut spans, theme, ":", "command");
     push_hint(&mut spans, theme, "?", "help");
     push_hint(&mut spans, theme, "q", "quit");
 

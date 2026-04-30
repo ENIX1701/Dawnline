@@ -82,7 +82,7 @@ pub fn update(app: &mut AppState, action: Action) -> Option<Command> {
             app.status_message = "no task selected".to_string();
         }
         Action::DropSelectedTask => {
-            if app.active_pane != ActivePane::Tasks {
+            if !can_modify_selected_task(app) {
                 app.status_message = "select tasks to drop a task".to_string();
                 return None;
             }
@@ -96,7 +96,7 @@ pub fn update(app: &mut AppState, action: Action) -> Option<Command> {
             app.status_message = "no task selected".to_string();
         }
         Action::RemoveSelectedTask => {
-            if app.active_pane != ActivePane::Tasks {
+            if !can_modify_selected_task(app) {
                 app.status_message = "select tasks to remove a task".to_string();
                 return None;
             }
@@ -137,6 +137,7 @@ pub fn update(app: &mut AppState, action: Action) -> Option<Command> {
             }
 
             app.current_screen = CurrentScreen::Review;
+            app.active_pane = ActivePane::CarryForward;
             app.status_message = "review - finish with a clear record".to_string();
 
             let mut events = Vec::new();
@@ -286,14 +287,10 @@ fn handle_char_input(app: &mut AppState, c: char) -> Option<Command> {
             }
         }
         'd' => {
-            if app.current_screen != CurrentScreen::Review {
-                return update(app, Action::DropSelectedTask);
-            }
+            return update(app, Action::DropSelectedTask);
         }
         'x' => {
-            if app.current_screen != CurrentScreen::Review {
-                return update(app, Action::RemoveSelectedTask);
-            }
+            return update(app, Action::RemoveSelectedTask);
         }
         _ => {}
     }
@@ -311,4 +308,10 @@ fn focus_minutes_from_command(input: &str) -> Option<u32> {
     input
         .strip_prefix("focus ")
         .map(|minutes| minutes.parse::<u32>().unwrap_or(45))
+}
+
+fn can_modify_selected_task(app: &AppState) -> bool {
+    app.active_pane == ActivePane::Tasks
+        || (app.current_screen == CurrentScreen::Review
+            && app.active_pane == ActivePane::CarryForward)
 }

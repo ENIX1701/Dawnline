@@ -1,5 +1,5 @@
 use crate::models::{BlockStatus, TaskStatus};
-use crate::state::AppState;
+use crate::state::{ActivePane, AppState};
 use crate::theme::DawnTheme;
 use ratatui::{
     prelude::*,
@@ -51,7 +51,7 @@ fn render_narrow(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
 }
 
 fn render_completed(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
-    let area = pane_area(f, area, theme);
+    let area = pane_area(f, area, theme, false);
     let mut items = vec![
         ListItem::new(Line::from(Span::styled("completed", theme.accent()))),
         ListItem::new(Line::from(Span::styled(
@@ -86,48 +86,75 @@ fn render_completed(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme)
 }
 
 fn render_carry_forward(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
-    let area = pane_area(f, area, theme);
-    let mut items = vec![
-        ListItem::new(Line::from(Span::styled("carry forward", theme.accent()))),
-        ListItem::new(Line::from(Span::styled(
-            "-------------------------",
-            theme.faint(),
-        ))),
-        ListItem::new(Line::from("")),
-    ];
+    let active = app.active_pane == ActivePane::CarryForward;
+    let area = pane_area(f, area, theme, active);
+    let title_style = if active {
+        theme.accent()
+    } else {
+        theme.muted()
+    };
+    let rail = if active { "| " } else { "  " };
 
-    let open: Vec<_> = app
-        .day
-        .tasks
-        .iter()
-        .filter(|task| task.status == TaskStatus::Open)
-        .collect();
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(1)])
+        .split(area);
+
+    f.render_widget(
+        Paragraph::new(vec![
+            Line::from(vec![
+                Span::styled(rail, theme.accent()),
+                Span::styled("carry forward", title_style),
+            ]),
+            Line::from(Span::styled("  ----------------", theme.faint())),
+            Line::from(""),
+        ]),
+        rows[0],
+    );
+
+    let open = app.visible_tasks();
 
     if open.is_empty() {
-        items.push(ListItem::new(Line::from(Span::styled(
-            "nothing waiting",
-            theme.muted(),
-        ))));
-    } else {
-        for task in open {
+        f.render_widget(
+            Paragraph::new(Line::from(Span::styled("nothing waiting", theme.muted()))),
+            rows[1],
+        );
+        return;
+    }
+
+    let items: Vec<ListItem> = open
+        .into_iter()
+        .map(|task| {
             let style = if task.priority {
                 theme.priority()
             } else {
                 theme.text()
             };
 
-            items.push(ListItem::new(Line::from(vec![
+            ListItem::new(Line::from(vec![
                 Span::styled("  ", theme.faint()),
                 Span::styled(task.title.clone(), style),
-            ])));
-        }
-    }
+            ]))
+        })
+        .collect();
 
-    f.render_widget(List::new(items), area);
+    let list = List::new(items)
+        .highlight_symbol(if active { "| " } else { "  " })
+        .highlight_style(theme.selected());
+
+    let mut state = app.task_state;
+    f.render_stateful_widget(list, rows[1], &mut state);
 }
 
 fn render_session(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
-    let area = pane_area(f, area, theme);
+    let active = app.active_pane == ActivePane::Session;
+    let area = pane_area(f, area, theme, active);
+    let title_style = if active {
+        theme.accent()
+    } else {
+        theme.muted()
+    };
+    let rail = if active { "| " } else { "  " };
     let completed_blocks = app
         .day
         .blocks
@@ -143,8 +170,11 @@ fn render_session(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
         .count();
 
     let mut lines = vec![
-        Line::from(Span::styled("session", theme.accent())),
-        Line::from(Span::styled("---------------", theme.faint())),
+        Line::from(vec![
+            Span::styled(rail, theme.accent()),
+            Span::styled("session", title_style),
+        ]),
+        Line::from(Span::styled("  -------------", theme.faint())),
         Line::from(""),
         metric_line(theme, "focus time", format_minutes(app.day.focus_minutes)),
         metric_line(theme, "blocks closed", completed_blocks.to_string()),
@@ -190,15 +220,17 @@ fn format_minutes(minutes: u32) -> String {
     }
 }
 
-fn pane_area(f: &mut Frame, area: Rect, theme: DawnTheme) -> Rect {
+fn pane_area(f: &mut Frame, area: Rect, theme: DawnTheme, active: bool) -> Rect {
     if area.width < 6 || area.height < 3 {
         return area;
     }
 
+    let border_style = if active { theme.muted() } else { theme.faint() };
+
     f.render_widget(
         WidgetBlock::default()
             .borders(Borders::ALL)
-            .border_style(theme.faint()),
+            .border_style(border_style),
         area,
     );
 

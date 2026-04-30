@@ -202,3 +202,88 @@ fn new_session_from_review_returns_to_plan_and_starts_session() {
         }))
     ));
 }
+
+#[test]
+fn tab_switches_review_between_carry_forward_and_session() {
+    let (mut app, _, _) = app_with_active_session_and_block();
+
+    update(&mut app, Action::Enter);
+    update(&mut app, Action::Char('f'));
+
+    assert_eq!(app.current_screen, CurrentScreen::Review);
+    assert_eq!(app.active_pane, ActivePane::CarryForward);
+
+    update(&mut app, Action::NextTab);
+
+    assert_eq!(app.active_pane, ActivePane::Session);
+
+    update(&mut app, Action::NextTab);
+
+    assert_eq!(app.active_pane, ActivePane::CarryForward);
+}
+
+#[test]
+fn review_can_drop_selected_carry_forward_task() {
+    let session_id = Uuid::now_v7();
+    let task_id = Uuid::now_v7();
+
+    let day = DayState::replay(&[
+        event_at(0, EventKind::SessionStarted { session_id }),
+        event_at(
+            1,
+            EventKind::TaskAdded {
+                task_id,
+                title: "Carry this forward".to_string(),
+                priority: true,
+            },
+        ),
+        event_at(2, EventKind::SessionFinished { session_id }),
+    ]);
+
+    let mut app = AppState::from_day(day);
+    app.current_screen = CurrentScreen::Review;
+    app.active_pane = ActivePane::CarryForward;
+
+    let command = update(&mut app, Action::Char('d'));
+
+    assert!(matches!(
+        command,
+        Some(Command::AppendEvent(Event {
+            kind: EventKind::TaskDropped { task_id: id },
+            ..
+        })) if id == task_id
+    ));
+}
+
+#[test]
+fn review_can_remove_selected_carry_forward_task() {
+    let session_id = Uuid::now_v7();
+    let task_id = Uuid::now_v7();
+
+    let day = DayState::replay(&[
+        event_at(0, EventKind::SessionStarted { session_id }),
+        event_at(
+            1,
+            EventKind::TaskAdded {
+                task_id,
+                title: "Remove this from active views".to_string(),
+                priority: false,
+            },
+        ),
+        event_at(2, EventKind::SessionFinished { session_id }),
+    ]);
+
+    let mut app = AppState::from_day(day);
+    app.current_screen = CurrentScreen::Review;
+    app.active_pane = ActivePane::CarryForward;
+
+    let command = update(&mut app, Action::Char('x'));
+
+    assert!(matches!(
+        command,
+        Some(Command::AppendEvent(Event {
+            kind: EventKind::TaskRemoved { task_id: id },
+            ..
+        })) if id == task_id
+    ));
+}

@@ -45,7 +45,7 @@ pub fn render_command(f: &mut Frame, app: &AppState, theme: DawnTheme) {
 
 pub fn render_help(f: &mut Frame, theme: DawnTheme) {
     let root = f.area();
-    let height = 13;
+    let height = 14;
     let area = Rect {
         x: root.x,
         y: root.y + root.height.saturating_sub(height),
@@ -71,6 +71,7 @@ pub fn render_help(f: &mut Frame, theme: DawnTheme) {
         help_line(theme, "space", "complete selected task"),
         help_line(theme, "s", "start selected block"),
         help_line(theme, "d", "drop selected task"),
+        help_line(theme, "x", "remove selected task"),
         help_line(theme, "t", "start focus timer in execute"),
         help_line(theme, "n", "start new session"),
         help_line(theme, "f", "finish execution / finish day"),

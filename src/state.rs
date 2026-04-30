@@ -14,6 +14,8 @@ pub enum CurrentScreen {
 pub enum ActivePane {
     Timeline,
     Tasks,
+    CarryForward,
+    Session,
 }
 
 #[derive(Debug, Clone)]
@@ -60,18 +62,37 @@ impl AppState {
 
     pub fn next_pane(&mut self) {
         if self.current_screen == CurrentScreen::Review {
-            self.flow_hint();
+            self.active_pane = match self.active_pane {
+                ActivePane::CarryForward => ActivePane::Session,
+                ActivePane::Session | ActivePane::Timeline | ActivePane::Tasks => {
+                    ActivePane::CarryForward
+                }
+            };
+
+            self.status_message = match self.active_pane {
+                ActivePane::CarryForward => "carry forward selected".to_string(),
+                ActivePane::Session => "session summary selected".to_string(),
+                ActivePane::Timeline | ActivePane::Tasks => {
+                    unreachable!("review pane should be carry-forward or session")
+                }
+            };
+
             return;
         }
 
         self.active_pane = match self.active_pane {
             ActivePane::Timeline => ActivePane::Tasks,
-            ActivePane::Tasks => ActivePane::Timeline,
+            ActivePane::Tasks | ActivePane::CarryForward | ActivePane::Session => {
+                ActivePane::Timeline
+            }
         };
 
         self.status_message = match self.active_pane {
             ActivePane::Timeline => "timeline selected".to_string(),
             ActivePane::Tasks => "tasks selected".to_string(),
+            ActivePane::CarryForward | ActivePane::Session => {
+                unreachable!("planning pane should be timeline or tasks")
+            }
         };
     }
 
@@ -108,7 +129,9 @@ impl AppState {
     }
 
     pub fn scroll_down(&mut self) {
-        if self.current_screen == CurrentScreen::Review {
+        if self.current_screen == CurrentScreen::Review
+            && self.active_pane != ActivePane::CarryForward
+        {
             return;
         }
 
@@ -121,11 +144,18 @@ impl AppState {
                 let len = self.visible_tasks().len();
                 select_next(&mut self.task_state, len);
             }
+            ActivePane::CarryForward => {
+                let len = self.visible_tasks().len();
+                select_next(&mut self.task_state, len);
+            }
+            ActivePane::Session => {}
         }
     }
 
     pub fn scroll_up(&mut self) {
-        if self.current_screen == CurrentScreen::Review {
+        if self.current_screen == CurrentScreen::Review
+            && self.active_pane != ActivePane::CarryForward
+        {
             return;
         }
 
@@ -138,6 +168,11 @@ impl AppState {
                 let len = self.visible_tasks().len();
                 select_prev(&mut self.task_state, len);
             }
+            ActivePane::CarryForward => {
+                let len = self.visible_tasks().len();
+                select_prev(&mut self.task_state, len);
+            }
+            ActivePane::Session => {}
         }
     }
 
@@ -152,6 +187,7 @@ impl AppState {
                 self.status_message = "getting things done. f to finish".to_string();
             }
             CurrentScreen::Review => {
+                self.active_pane = ActivePane::CarryForward;
                 self.status_message = "review. see what worked. see what didnt'.".to_string();
             }
         }
@@ -161,7 +197,7 @@ impl AppState {
         self.status_message = match self.current_screen {
             CurrentScreen::Plan => "enter to begin executing".to_string(),
             CurrentScreen::Execute => "f or :finish to review".to_string(),
-            CurrentScreen::Review => "review done. start a new session later.".to_string(),
+            CurrentScreen::Review => "n new session, f finish day".to_string(),
         };
     }
 

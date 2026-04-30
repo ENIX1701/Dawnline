@@ -1,5 +1,6 @@
 use crate::state::{AppState, CurrentScreen};
 use crate::theme::DawnTheme;
+use chrono::Local;
 use ratatui::{prelude::*, widgets::Paragraph};
 
 pub mod execute;
@@ -8,6 +9,11 @@ pub mod plan;
 pub mod review;
 
 pub fn draw(f: &mut Frame, app: &AppState, theme: DawnTheme, tagline: &str) {
+    if app.day.day_finished {
+        render_finished_day(f, theme, tagline);
+        return;
+    }
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -133,6 +139,7 @@ fn render_footer(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
         }
         CurrentScreen::Execute => {
             push_hint(&mut spans, theme, "space", "done");
+            push_hint(&mut spans, theme, "t", "focus");
             push_hint(&mut spans, theme, "f", "finish");
             push_hint(&mut spans, theme, ":", "command");
         }
@@ -159,4 +166,26 @@ fn push_hint(
 ) {
     spans.push(Span::styled(key, theme.accent()));
     spans.push(Span::styled(format!(" {}  ", label), theme.muted()));
+}
+
+fn render_finished_day(f: &mut Frame, theme: DawnTheme, tagline: &str) {
+    let area = f.area();
+
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(45),
+            Constraint::Length(3),
+            Constraint::Percentage(55),
+        ])
+        .split(area);
+
+    let now = Local::now().format("%H:%M").to_string();
+    let lines = vec![
+        Line::from(Span::styled(now, theme.muted())).centered(),
+        Line::from(Span::styled(tagline.to_string(), theme.accent())).centered(),
+        Line::from(Span::styled("q quit", theme.faint())).centered(),
+    ];
+
+    f.render_widget(Paragraph::new(lines), rows[1]);
 }

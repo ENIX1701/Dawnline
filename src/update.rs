@@ -170,6 +170,21 @@ fn handle_command_mode(app: &mut AppState, action: Action) -> Option<Command> {
                 return None;
             }
 
+            if let Some(minutes) = focus_minutes_from_command(&input) {
+                app.command_mode = false;
+                app.command_buffer.clear();
+
+                if app.current_screen != CurrentScreen::Execute {
+                    app.status_message = "focus starts in execute".to_string();
+                    return None;
+                }
+
+                app.start_focus(minutes);
+                return Some(Command::AppendEvent(Event::new(EventKind::FocusLogged {
+                    minutes,
+                })));
+            }
+
             if input == "finish" {
                 app.command_mode = false;
                 app.command_buffer.clear();
@@ -211,6 +226,16 @@ fn handle_char_input(app: &mut AppState, c: char) -> Option<Command> {
         }
         'e' => app.start_execution(),
         'p' | 'r' => app.flow_hint(),
+        't' => {
+            if app.current_screen == CurrentScreen::Execute {
+                app.start_focus(45);
+                return Some(Command::AppendEvent(Event::new(EventKind::FocusLogged {
+                    minutes: 45,
+                })));
+            }
+
+            app.status_message = "focus starts in execute".to_string();
+        }
         'f' => {
             return match app.current_screen {
                 CurrentScreen::Execute => update(app, Action::FinishSession),
@@ -245,4 +270,16 @@ fn handle_char_input(app: &mut AppState, c: char) -> Option<Command> {
     }
 
     None
+}
+
+fn focus_minutes_from_command(input: &str) -> Option<u32> {
+    let input = input.trim().trim_start_matches(':').trim();
+
+    if input == "focus" {
+        return Some(45);
+    }
+
+    input
+        .strip_prefix("focus ")
+        .map(|minutes| minutes.parse::<u32>().unwrap_or(45))
 }

@@ -183,8 +183,32 @@ fn day_finished_closes_active_session() {
 
     let state = DayState::replay(&events);
 
+    assert!(state.day_finished);
     assert_eq!(state.current_session_id, None);
     assert!(state.sessions[0].finished_at.is_some());
+}
+
+#[test]
+fn store_does_not_start_new_session_after_day_is_finished() -> color_eyre::Result<()> {
+    let mut store = temp_store();
+    let session_id = Uuid::now_v7();
+
+    store.append(Event::new(EventKind::SessionStarted { session_id }))?;
+    store.append(Event::new(EventKind::DayFinished))?;
+    store.ensure_session()?;
+
+    let state = store.load_state()?;
+    let started_sessions = state
+        .history
+        .iter()
+        .filter(|event| matches!(event.kind, EventKind::SessionStarted { .. }))
+        .count();
+
+    assert!(state.day_finished);
+    assert_eq!(started_sessions, 1);
+
+    let _ = std::fs::remove_file(&store.path);
+    Ok(())
 }
 
 #[test]

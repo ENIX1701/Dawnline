@@ -69,6 +69,10 @@ impl EventStore {
     pub fn ensure_session(&mut self) -> Result<()> {
         let state = self.load_state()?;
 
+        if state.day_finished {
+            return Ok(());
+        }
+
         if state.current_session_id.is_none() {
             self.append(Event::new(EventKind::SessionStarted {
                 session_id: Uuid::now_v7(),

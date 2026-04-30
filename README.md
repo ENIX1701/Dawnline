@@ -79,6 +79,32 @@ q       quit
 
 ---
 
+Test scenario:
+
+##### 1. Open app, plan mode
+##### 2. Open the command palette (`:`) and add stuff
+
+```bash
+:add block 14:00 22:00 Dawnline release
+:add block next Create README
+:add priority task Finish manual testing
+:add task Prepare deploy
+:note Almost there
+```
+
+##### 3. `tab` to switch panes
+##### 4. Arrow keys to move around. Select a block and press `s` to select
+##### 5. `enter` to move into Execute
+##### 6. Complete one task with `space`
+##### 7. In command palette:
+```bash
+:focus 5
+:note Almost done for the day
+```
+
+
+---
+
 ```bash
 cargo fmt --all
 cargo clippy --all-targets --all-features -- -D warnings

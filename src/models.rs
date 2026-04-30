@@ -172,6 +172,7 @@ pub enum EventKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DayState {
     pub date: NaiveDate,
+    pub day_finished: bool,
     pub current_session_id: Option<Uuid>,
     pub sessions: Vec<Session>,
     pub blocks: Vec<Block>,
@@ -185,6 +186,7 @@ impl Default for DayState {
     fn default() -> Self {
         Self {
             date: Local::now().date_naive(),
+            day_finished: false,
             current_session_id: None,
             sessions: Vec::new(),
             blocks: Vec::new(),
@@ -229,6 +231,8 @@ impl DayState {
                 }
             }
             DayFinished => {
+                self.day_finished = true;
+
                 for session in &mut self.sessions {
                     if session.finished_at.is_none() {
                         session.finished_at = Some(at);

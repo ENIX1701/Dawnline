@@ -1,4 +1,5 @@
 use crate::models::{Block, BlockTiming, DayState, Task};
+use chrono::{DateTime, Local};
 use ratatui::widgets::ListState;
 use uuid::Uuid;
 
@@ -26,6 +27,8 @@ pub struct AppState {
     pub show_help: bool,
     pub status_message: String,
     pub active_pane: ActivePane,
+    pub focus_started_at: Option<DateTime<Local>>,
+    pub focus_minutes: u32,
 }
 
 impl AppState {
@@ -50,6 +53,8 @@ impl AppState {
             show_help: false,
             status_message: "READY - press '?' for help".to_string(),
             active_pane: ActivePane::Timeline,
+            focus_started_at: None,
+            focus_minutes: 45,
         }
     }
 
@@ -166,6 +171,20 @@ impl AppState {
 
         clamp_selection(&mut self.block_state, block_len);
         clamp_selection(&mut self.task_state, task_len);
+    }
+
+    pub fn start_focus(&mut self, minutes: u32) {
+        self.focus_started_at = Some(Local::now());
+        self.focus_minutes = minutes;
+        self.status_message = format!("focus started: {}m", minutes);
+    }
+
+    pub fn focus_remaining_seconds(&self) -> Option<i64> {
+        let started = self.focus_started_at?;
+        let elapsed = Local::now().signed_duration_since(started).num_seconds();
+        let total = i64::from(self.focus_minutes) * 60;
+
+        Some((total - elapsed).max(0))
     }
 }
 

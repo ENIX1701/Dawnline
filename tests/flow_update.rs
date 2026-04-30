@@ -133,3 +133,46 @@ fn review_command_does_not_skip_execution_finish() {
     assert_eq!(command, None);
     assert_eq!(app.current_screen, CurrentScreen::Plan);
 }
+
+#[test]
+fn focus_hotkey_starts_timer_and_logs_focus_from_execute() {
+    let (mut app, _, _) = app_with_active_session_and_block();
+
+    update(&mut app, Action::Enter);
+    let command = update(&mut app, Action::Char('t'));
+
+    assert!(app.focus_remaining_seconds().is_some());
+
+    assert!(matches!(
+        command,
+        Some(Command::AppendEvent(Event {
+            kind: EventKind::FocusLogged { minutes: 45 },
+            ..
+        }))
+    ));
+}
+
+#[test]
+fn focus_command_starts_requested_timer_from_execute() {
+    let (mut app, _, _) = app_with_active_session_and_block();
+
+    update(&mut app, Action::Enter);
+    update(&mut app, Action::OpenCommand);
+
+    for c in "focus 25".chars() {
+        update(&mut app, Action::Char(c));
+    }
+
+    let command = update(&mut app, Action::Enter);
+
+    assert_eq!(app.focus_minutes, 25);
+    assert!(app.focus_remaining_seconds().is_some());
+
+    assert!(matches!(
+        command,
+        Some(Command::AppendEvent(Event {
+            kind: EventKind::FocusLogged { minutes: 25 },
+            ..
+        }))
+    ));
+}

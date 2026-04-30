@@ -64,7 +64,7 @@ fn render_now(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
 
     lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
-        format!("focus {}", format_minutes(app.day.focus_minutes)),
+        format!("focus {}", focus_status(app)),
         theme.muted(),
     )));
     lines.push(Line::from(""));
@@ -162,6 +162,21 @@ fn format_minutes(minutes: u32) -> String {
     } else {
         format!("{}h {}m", hours, rem)
     }
+}
+
+fn focus_status(app: &AppState) -> String {
+    if let Some(seconds) = app.focus_remaining_seconds() {
+        return format_mm_ss(seconds);
+    }
+
+    format!("logged {}", format_minutes(app.day.focus_minutes))
+}
+
+fn format_mm_ss(seconds: i64) -> String {
+    let minutes = seconds / 60;
+    let seconds = seconds % 60;
+
+    format!("{minutes:02}:{seconds:02}")
 }
 
 fn pane_area(f: &mut Frame, area: Rect, theme: DawnTheme, active: bool) -> Rect {

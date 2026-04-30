@@ -98,7 +98,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
 
     let mut app = AppState::from_day(store.load_state()?);
     let tick_rate = Duration::from_millis(250);
-    let last_tick = Instant::now();
+    let mut last_tick = Instant::now();
 
     loop {
         terminal.draw(|f| ui::draw(f, &app))?;
@@ -133,6 +133,11 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
                 return Ok(());
             }
         }
+
+        if last_tick.elapsed() >= tick_rate {
+            update::update(&mut app, Action::Tick);
+            last_tick = Instant::now();
+        }
     }
 }
 
@@ -142,7 +147,6 @@ fn process_command(command: Command, store: &mut EventStore, app: &mut AppState)
         Command::AppendEvent(event) => {
             store.append(event)?;
             app.day = store.load_state()?;
-            app.status_message = "Saved".to_string();
         }
         Command::RunPalette(input) => {
             let message = store.run_palette_command(&input)?;

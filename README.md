@@ -101,7 +101,8 @@ Test scenario:
 :focus 5
 :note Almost done for the day
 ```
-
+##### 8. `f` to move into review
+##### 9. `f` again to finish the day
 
 ---
 

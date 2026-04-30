@@ -176,3 +176,29 @@ fn focus_command_starts_requested_timer_from_execute() {
         }))
     ));
 }
+
+#[test]
+fn new_session_from_review_returns_to_plan_and_starts_session() {
+    let session_id = Uuid::now_v7();
+
+    let day = DayState::replay(&[
+        event_at(0, EventKind::SessionStarted { session_id }),
+        event_at(1, EventKind::SessionFinished { session_id }),
+    ]);
+
+    let mut app = AppState::from_day(day);
+    app.current_screen = CurrentScreen::Review;
+
+    let command = update(&mut app, Action::Char('n'));
+
+    assert_eq!(app.current_screen, CurrentScreen::Plan);
+    assert_eq!(app.active_pane, ActivePane::Timeline);
+
+    assert!(matches!(
+        command,
+        Some(Command::AppendEvent(Event {
+            kind: EventKind::SessionStarted { .. },
+            ..
+        }))
+    ));
+}

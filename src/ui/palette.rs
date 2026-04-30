@@ -72,6 +72,7 @@ pub fn render_help(f: &mut Frame, theme: DawnTheme) {
         help_line(theme, "s", "start selected block"),
         help_line(theme, "d", "drop selected task"),
         help_line(theme, "t", "start focus timer in execute"),
+        help_line(theme, "n", "start new session"),
         help_line(theme, "f", "finish execution / finish day"),
         Line::from(""),
         Line::from(vec![

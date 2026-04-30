@@ -144,6 +144,7 @@ fn render_footer(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
             push_hint(&mut spans, theme, ":", "command");
         }
         CurrentScreen::Review => {
+            push_hint(&mut spans, theme, "n", "new session");
             push_hint(&mut spans, theme, "f", "finish day");
             push_hint(&mut spans, theme, ":", "command");
         }

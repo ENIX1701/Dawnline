@@ -27,6 +27,7 @@ pub enum Action {
     CompleteSelectedTask,
     DropSelectedTask,
     RemoveSelectedTask,
+    StartNewSession,
     FinishSession,
     FinishDay,
 

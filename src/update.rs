@@ -1,6 +1,7 @@
 use crate::action::Action;
 use crate::models::{Event, EventKind};
 use crate::state::{ActivePane, AppState, CurrentScreen};
+use uuid::Uuid;
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
@@ -108,6 +109,27 @@ pub fn update(app: &mut AppState, action: Action) -> Option<Command> {
 
             app.status_message = "no task selected".to_string();
         }
+        Action::StartNewSession => {
+            if app.current_screen != CurrentScreen::Review {
+                app.flow_hint();
+                return None;
+            }
+
+            if app.day.day_finished {
+                app.status_message = "day already finished".to_string();
+                return None;
+            }
+
+            app.current_screen = CurrentScreen::Plan;
+            app.active_pane = ActivePane::Timeline;
+            app.status_message = "new session started. plan the next block".to_string();
+
+            return Some(Command::AppendEvent(Event::new(
+                EventKind::SessionStarted {
+                    session_id: Uuid::now_v7(),
+                },
+            )));
+        }
         Action::FinishSession => {
             if app.current_screen != CurrentScreen::Execute {
                 app.status_message = "execution needs to start to be finished".to_string();
@@ -185,6 +207,12 @@ fn handle_command_mode(app: &mut AppState, action: Action) -> Option<Command> {
                 })));
             }
 
+            if input == "new session" || input == "session new" {
+                app.command_mode = false;
+                app.command_buffer.clear();
+                return update(app, Action::StartNewSession);
+            }
+
             if input == "finish" {
                 app.command_mode = false;
                 app.command_buffer.clear();
@@ -236,6 +264,7 @@ fn handle_char_input(app: &mut AppState, c: char) -> Option<Command> {
 
             app.status_message = "focus starts in execute".to_string();
         }
+        'n' => return update(app, Action::StartNewSession),
         'f' => {
             return match app.current_screen {
                 CurrentScreen::Execute => update(app, Action::FinishSession),

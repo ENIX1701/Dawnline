@@ -3,7 +3,7 @@ A minimal, clean terminal focus center. In your CLI.
 
 ---
 
-The concept is simple. An app that supports your focus in times of constant distraction.
+An app that supports your focus in times of constant distraction.
 
 ### Initial product spec
 

@@ -287,3 +287,62 @@ fn review_can_remove_selected_carry_forward_task() {
         })) if id == task_id
     ));
 }
+
+#[test]
+fn open_tasks_remain_active_when_starting_next_session() {
+    let session_id = Uuid::now_v7();
+    let task_id = Uuid::now_v7();
+
+    let day = DayState::replay(&[
+        event_at(0, EventKind::SessionStarted { session_id }),
+        event_at(
+            1,
+            EventKind::TaskAdded {
+                task_id,
+                title: "Carry this into the next session".to_string(),
+                priority: true,
+            },
+        ),
+    ]);
+
+    let mut app = AppState::from_day(day);
+
+    update(&mut app, Action::Enter);
+    let Some(Command::AppendEvents(finish_events)) = update(&mut app, Action::Char('f')) else {
+        panic!("expected session finish events");
+    };
+
+    for event in finish_events {
+        app.day.apply(event);
+    }
+
+    app.sync_selection();
+
+    let Some(Command::AppendEvent(start_event)) = update(&mut app, Action::Char('n')) else {
+        panic!("expected session start event");
+    };
+
+    app.day.apply(start_event);
+    app.sync_selection();
+
+    assert_eq!(app.current_screen, CurrentScreen::Plan);
+    assert!(app.day.current_session_id.is_some());
+    assert!(app.day.active_tasks().iter().any(|task| task.id == task_id));
+}
+
+#[test]
+fn add_hotkey_prefills_command_for_active_pane() {
+    let (mut app, _, _) = app_with_active_session_and_block();
+
+    update(&mut app, Action::Char('a'));
+
+    assert!(app.command_mode);
+    assert_eq!(app.command_buffer, "add block ");
+
+    update(&mut app, Action::Esc);
+    update(&mut app, Action::NextTab);
+    update(&mut app, Action::Char('a'));
+
+    assert!(app.command_mode);
+    assert_eq!(app.command_buffer, "add task ");
+}

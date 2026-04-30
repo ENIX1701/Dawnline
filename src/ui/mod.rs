@@ -38,7 +38,7 @@ pub fn draw(f: &mut Frame, app: &AppState, theme: DawnTheme, tagline: &str) {
     }
 
     if app.show_help {
-        palette::render_help(f, theme);
+        palette::render_help(f, app, theme);
     }
 }
 
@@ -127,59 +127,61 @@ fn flow_line(app: &AppState, theme: DawnTheme) -> Line<'static> {
     ])
 }
 
-fn render_footer(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
-    let mut spans = Vec::new();
+pub(crate) fn current_hints(app: &AppState) -> Vec<(&'static str, &'static str)> {
+    let mut hints = vec![("tab", "pane")];
 
-    push_hint(&mut spans, theme, "tab", "pane");
-
-    match app.current_screen {
-        CurrentScreen::Plan => {
-            match app.active_pane {
-                ActivePane::Timeline => {
-                    push_hint(&mut spans, theme, "s", "start");
-                    push_hint(&mut spans, theme, "a", "add");
-                }
-                ActivePane::Tasks => {
-                    push_hint(&mut spans, theme, "space", "done");
-                    push_hint(&mut spans, theme, "d", "drop");
-                    push_hint(&mut spans, theme, "x", "remove");
-                    push_hint(&mut spans, theme, "a", "add");
-                }
-                _ => {}
+    match app.active_pane {
+        ActivePane::Timeline => {
+            hints.push(("a", "add block"));
+            if app.current_screen != CurrentScreen::Review {
+                hints.push(("s", "start"));
             }
-
-            push_hint(&mut spans, theme, "enter", "execute");
         }
-        CurrentScreen::Execute => {
-            match app.active_pane {
-                ActivePane::Timeline => {
-                    push_hint(&mut spans, theme, "s", "start");
-                }
-                ActivePane::Tasks => {
-                    push_hint(&mut spans, theme, "space", "done");
-                    push_hint(&mut spans, theme, "d", "drop");
-                    push_hint(&mut spans, theme, "x", "remove");
-                }
-                _ => {}
+        ActivePane::Tasks => {
+            hints.push(("a", "add task"));
+            if app.current_screen != CurrentScreen::Review {
+                hints.push(("space", "done"));
+                hints.push(("d", "drop"));
+                hints.push(("x", "remove"));
             }
-
-            push_hint(&mut spans, theme, "t", "focus");
-            push_hint(&mut spans, theme, "f", "finish");
         }
-        CurrentScreen::Review => {
-            if app.active_pane == ActivePane::CarryForward {
-                push_hint(&mut spans, theme, "d", "drop");
-                push_hint(&mut spans, theme, "x", "remove");
-            }
-
-            push_hint(&mut spans, theme, "n", "new session");
-            push_hint(&mut spans, theme, "f", "finish day");
+        ActivePane::CarryForward => {
+            hints.push(("a", "add task"));
+            hints.push(("d", "drop"));
+            hints.push(("x", "remove"));
+        }
+        ActivePane::Session => {
+            hints.push(("a", "add task"));
         }
     }
 
-    push_hint(&mut spans, theme, ":", "command");
-    push_hint(&mut spans, theme, "?", "help");
-    push_hint(&mut spans, theme, "q", "quit");
+    match app.current_screen {
+        CurrentScreen::Plan => {
+            hints.push(("enter", "execute"));
+        }
+        CurrentScreen::Execute => {
+            hints.push(("t", "focus"));
+            hints.push(("f", "finish"));
+        }
+        CurrentScreen::Review => {
+            hints.push(("n", "new session"));
+            hints.push(("f", "finish day"));
+        }
+    }
+
+    hints.push((":", "command"));
+    hints.push(("?", "help"));
+    hints.push(("q", "quit"));
+
+    hints
+}
+
+fn render_footer(f: &mut Frame, app: &AppState, area: Rect, theme: DawnTheme) {
+    let mut spans = Vec::new();
+
+    for (key, label) in current_hints(app) {
+        push_hint(&mut spans, theme, key, label);
+    }
 
     spans.push(Span::styled(" | ", theme.faint()));
     spans.push(Span::styled(app.status_message.clone(), theme.muted()));

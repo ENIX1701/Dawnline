@@ -43,9 +43,10 @@ pub fn render_command(f: &mut Frame, app: &AppState, theme: DawnTheme) {
     );
 }
 
-pub fn render_help(f: &mut Frame, theme: DawnTheme) {
+pub fn render_help(f: &mut Frame, app: &AppState, theme: DawnTheme) {
+    let hints = super::current_hints(app);
     let root = f.area();
-    let height = 14;
+    let height = (hints.len() as u16 + 4).min(root.height);
     let area = Rect {
         x: root.x,
         y: root.y + root.height.saturating_sub(height),
@@ -60,31 +61,17 @@ pub fn render_help(f: &mut Frame, theme: DawnTheme) {
         vertical: 1,
     });
 
-    let lines = vec![
+    let mut lines = vec![
         Line::from(Span::styled("help", theme.accent())),
         Line::from(Span::styled(
             "-".repeat(inner.width as usize),
             theme.faint(),
         )),
-        help_line(theme, "enter", "begin execution from plan"),
-        help_line(theme, "tab", "switch pane"),
-        help_line(theme, "space", "complete selected task"),
-        help_line(theme, "s", "start selected block"),
-        help_line(theme, "d", "drop selected task"),
-        help_line(theme, "x", "remove selected task"),
-        help_line(theme, "t", "start focus timer in execute"),
-        help_line(theme, "n", "start new session"),
-        help_line(theme, "f", "finish execution / finish day"),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled(":", theme.accent()),
-            Span::styled(" command    ", theme.muted()),
-            Span::styled("?", theme.accent()),
-            Span::styled(" help    ", theme.muted()),
-            Span::styled("q", theme.accent()),
-            Span::styled(" quit", theme.muted()),
-        ]),
     ];
+
+    for (key, label) in hints {
+        lines.push(help_line(theme, key, label));
+    }
 
     f.render_widget(Paragraph::new(lines), inner);
 }

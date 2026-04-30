@@ -249,7 +249,8 @@ fn handle_command_mode(app: &mut AppState, action: Action) -> Option<Command> {
 fn handle_char_input(app: &mut AppState, c: char) -> Option<Command> {
     match c.to_ascii_lowercase() {
         'q' => return Some(Command::Quit),
-        'a' | ':' => {
+        'a' => open_add_command(app),
+        ':' => {
             app.command_mode = true;
             app.command_buffer.clear();
         }
@@ -308,6 +309,16 @@ fn focus_minutes_from_command(input: &str) -> Option<u32> {
     input
         .strip_prefix("focus ")
         .map(|minutes| minutes.parse::<u32>().unwrap_or(45))
+}
+
+fn open_add_command(app: &mut AppState) {
+    app.command_mode = true;
+    app.command_buffer = match app.active_pane {
+        ActivePane::Timeline => "add block ".to_string(),
+        ActivePane::Tasks | ActivePane::CarryForward | ActivePane::Session => {
+            "add task ".to_string()
+        }
+    };
 }
 
 fn can_modify_selected_task(app: &AppState) -> bool {

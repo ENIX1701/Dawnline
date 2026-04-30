@@ -4,9 +4,15 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CurrentScreen {
-    Execute,
     Plan,
+    Execute,
     Review,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivePane {
+    Timeline,
+    Tasks,
 }
 
 #[derive(Debug, Clone)]
@@ -19,6 +25,7 @@ pub struct AppState {
     pub command_buffer: String,
     pub show_help: bool,
     pub status_message: String,
+    pub active_pane: ActivePane,
 }
 
 impl AppState {
@@ -42,23 +49,25 @@ impl AppState {
             command_buffer: String::new(),
             show_help: false,
             status_message: "READY - press '?' for help".to_string(),
+            active_pane: ActivePane::Timeline,
         }
     }
 
-    pub fn next_tab(&mut self) {
-        self.current_screen = match self.current_screen {
-            CurrentScreen::Plan => CurrentScreen::Execute,
-            CurrentScreen::Execute => CurrentScreen::Review,
-            CurrentScreen::Review => CurrentScreen::Plan,
+    pub fn next_pane(&mut self) {
+        if self.current_screen == CurrentScreen::Review {
+            self.flow_hint();
+            return;
         }
-    }
 
-    pub fn prev_tab(&mut self) {
-        self.current_screen = match self.current_screen {
-            CurrentScreen::Plan => CurrentScreen::Review,
-            CurrentScreen::Execute => CurrentScreen::Plan,
-            CurrentScreen::Review => CurrentScreen::Execute,
-        }
+        self.active_pane = match self.active_pane {
+            ActivePane::Timeline => ActivePane::Tasks,
+            ActivePane::Tasks => ActivePane::Timeline,
+        };
+
+        self.status_message = match self.active_pane {
+            ActivePane::Timeline => "timeline selected".to_string(),
+            ActivePane::Tasks => "tasks selected".to_string(),
+        };
     }
 
     pub fn visible_blocks(&self) -> Vec<&Block> {
@@ -86,26 +95,42 @@ impl AppState {
     }
 
     pub fn scroll_down(&mut self) {
-        match self.current_screen {
-            CurrentScreen::Plan | CurrentScreen::Execute => {
+        if self.current_screen == CurrentScreen::Review {
+            return;
+        }
+
+        match self.active_pane {
+            ActivePane::Timeline => {
+                let len = self.visible_blocks().len();
+                select_next(&mut self.block_state, len);
+            }
+            ActivePane::Tasks => {
                 let len = self.visible_tasks().len();
                 select_next(&mut self.task_state, len);
             }
-            CurrentScreen::Review => {}
         }
     }
 
     pub fn scroll_up(&mut self) {
-        match self.current_screen {
-            CurrentScreen::Plan | CurrentScreen::Execute => {
+        if self.current_screen == CurrentScreen::Review {
+            return;
+        }
+
+        match self.active_pane {
+            ActivePane::Timeline => {
+                let len = self.visible_blocks().len();
+                select_prev(&mut self.block_state, len);
+            }
+            ActivePane::Tasks => {
                 let len = self.visible_tasks().len();
                 select_prev(&mut self.task_state, len);
             }
-            CurrentScreen::Review => {}
         }
     }
 
     pub fn start_execution(&mut self) {
+        self.active_pane = ActivePane::Tasks;
+
         match self.current_screen {
             CurrentScreen::Plan => {
                 self.current_screen = CurrentScreen::Execute;

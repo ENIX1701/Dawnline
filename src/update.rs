@@ -19,7 +19,7 @@ pub fn update(app: &mut AppState, action: Action) -> Option<Command> {
         Action::Tick => {}
         Action::Resize(_, _) => {}
 
-        Action::NextTab | Action::PrevTab => app.flow_hint(),
+        Action::NextTab | Action::PrevTab => app.next_pane(),
         Action::ToggleHelp => app.show_help = !app.show_help,
 
         Action::OpenCommand => {
@@ -85,6 +85,12 @@ pub fn update(app: &mut AppState, action: Action) -> Option<Command> {
             }
         }
         Action::FinishDay => {
+            if app.current_screen != CurrentScreen::Review {
+                app.flow_hint();
+                return None;
+            }
+
+            app.status_message = "day finished".to_string();
             return Some(Command::AppendEvent(Event::new(EventKind::DayFinished)));
         }
         Action::ReceiveStoreResult(result) => match result {
@@ -115,9 +121,18 @@ fn handle_command_mode(app: &mut AppState, action: Action) -> Option<Command> {
                 return None;
             }
 
-            if input == "finish" && app.current_screen == CurrentScreen::Execute {
-                app.current_screen = CurrentScreen::Review;
-                app.status_message = "review. finish with a clear record".to_string();
+            if input == "finish" {
+                app.command_mode = false;
+                app.command_buffer.clear();
+
+                return match app.current_screen {
+                    CurrentScreen::Execute => update(app, Action::FinishSession),
+                    CurrentScreen::Review => update(app, Action::FinishDay),
+                    CurrentScreen::Plan => {
+                        app.flow_hint();
+                        None
+                    }
+                };
             }
 
             return Some(Command::RunPalette(input));
@@ -147,7 +162,16 @@ fn handle_char_input(app: &mut AppState, c: char) -> Option<Command> {
         }
         'e' => app.start_execution(),
         'p' | 'r' => app.flow_hint(),
-        'f' => return update(app, Action::FinishSession),
+        'f' => {
+            return match app.current_screen {
+                CurrentScreen::Execute => update(app, Action::FinishSession),
+                CurrentScreen::Review => update(app, Action::FinishDay),
+                CurrentScreen::Plan => {
+                    app.flow_hint();
+                    None
+                }
+            };
+        }
         ' ' => {
             if app.current_screen != CurrentScreen::Review {
                 return update(app, Action::CompleteSelectedTask);

@@ -262,7 +262,7 @@ impl EventStore {
     }
 
     pub fn run_palette_command(&mut self, input: &str) -> Result<String> {
-        let input = input.trim();
+        let input = input.trim().trim_start_matches(':').trim();
 
         if input.is_empty() {
             return Ok("No command".to_string());

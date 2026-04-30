@@ -115,21 +115,31 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
         if event::poll(timeout)?
             && let CEvent::Key(key) = event::read()?
         {
-            let action = match key.code {
-                KeyCode::Char(':') => Action::OpenCommand,
-                KeyCode::Char('?') => Action::ToggleHelp,
-                KeyCode::Char('q') => Action::Quit,
-                KeyCode::Char(c) => Action::Char(c),
-                KeyCode::Enter => Action::Enter,
-                KeyCode::Esc => Action::Esc,
-                KeyCode::Backspace => Action::Backspace,
-                KeyCode::Up => Action::Up,
-                KeyCode::Down => Action::Down,
-                KeyCode::Left => Action::Left,
-                KeyCode::Right => Action::Right,
-                KeyCode::Tab => Action::NextTab,
-                KeyCode::BackTab => Action::PrevTab,
-                _ => Action::Tick,
+            let action = if app.command_mode {
+                match key.code {
+                    KeyCode::Enter => Action::Enter,
+                    KeyCode::Esc => Action::Esc,
+                    KeyCode::Backspace => Action::Backspace,
+                    KeyCode::Char(c) => Action::Char(c),
+                    _ => Action::Tick,
+                }
+            } else {
+                match key.code {
+                    KeyCode::Char(':') => Action::OpenCommand,
+                    KeyCode::Char('?') => Action::ToggleHelp,
+                    KeyCode::Char('q') => Action::Quit,
+                    KeyCode::Char(c) => Action::Char(c),
+                    KeyCode::Enter => Action::Enter,
+                    KeyCode::Esc => Action::Esc,
+                    KeyCode::Backspace => Action::Backspace,
+                    KeyCode::Up => Action::Up,
+                    KeyCode::Down => Action::Down,
+                    KeyCode::Left => Action::Left,
+                    KeyCode::Right => Action::Right,
+                    KeyCode::Tab => Action::NextTab,
+                    KeyCode::BackTab => Action::PrevTab,
+                    _ => Action::Tick,
+                }
             };
 
             if let Some(command) = update::update(&mut app, action)

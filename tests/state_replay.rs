@@ -229,3 +229,25 @@ fn palette_start_starts_block_even_when_no_block_is_active() -> color_eyre::Resu
     let _ = std::fs::remove_file(&store.path);
     Ok(())
 }
+
+#[test]
+fn palette_accepts_leading_colon_and_exact_block_times() -> color_eyre::Result<()> {
+    let mut store = temp_store();
+
+    let message = store.run_palette_command(":add block 13:00 14:30 Review metrics")?;
+    let state = store.load_state()?;
+
+    assert_eq!(message, "Block added");
+    assert_eq!(state.blocks.len(), 1);
+
+    match &state.blocks[0].timing {
+        BlockTiming::Exact { start, end } => {
+            assert_eq!(start, "13:00");
+            assert_eq!(end.as_deref(), Some("14:30"));
+        }
+        _ => panic!("expected exact block timing"),
+    }
+
+    let _ = std::fs::remove_file(&store.path);
+    Ok(())
+}

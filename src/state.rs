@@ -1,4 +1,4 @@
-use crate::models::{Block, DayState, Task};
+use crate::models::{Block, BlockTiming, DayState, Task};
 use ratatui::widgets::ListState;
 use uuid::Uuid;
 
@@ -71,7 +71,15 @@ impl AppState {
     }
 
     pub fn visible_blocks(&self) -> Vec<&Block> {
-        self.day.blocks.iter().collect()
+        let mut blocks: Vec<&Block> = self.day.blocks.iter().collect();
+
+        blocks.sort_by(|a, b| {
+            block_group_key(a)
+                .cmp(&block_group_key(b))
+                .then_with(|| a.created_at.cmp(&b.created_at))
+        });
+
+        blocks
     }
 
     pub fn visible_tasks(&self) -> Vec<&Task> {
@@ -209,4 +217,30 @@ fn select_prev(state: &mut ListState, len: usize) {
     };
 
     state.select(Some(i));
+}
+
+fn block_group_key(block: &Block) -> (u8, u32, String) {
+    match &block.timing {
+        BlockTiming::Loose { label } => match label.to_ascii_lowercase().as_str() {
+            "now" => (0, 0, String::new()),
+            "next" => (1, 0, String::new()),
+            "later" => (3, 0, String::new()),
+            other => (4, 0, other.to_string()),
+        },
+        BlockTiming::Exact { start, .. } => {
+            (2, time_minutes(start).unwrap_or(u32::MAX), String::new())
+        }
+    }
+}
+
+fn time_minutes(value: &str) -> Option<u32> {
+    let (hour, minute) = value.split_once(':')?;
+    let hour = hour.parse::<u32>().ok()?;
+    let minute = minute.parse::<u32>().ok()?;
+
+    if hour < 24 && minute < 60 {
+        Some(hour * 60 + minute)
+    } else {
+        None
+    }
 }

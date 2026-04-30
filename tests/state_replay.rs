@@ -1,5 +1,6 @@
 use chrono::{Duration, TimeZone, Utc};
 use dawnline::models::{BlockStatus, BlockTiming, DayState, Event, EventKind, TaskStatus};
+use dawnline::state::AppState;
 use dawnline::store::EventStore;
 use uuid::Uuid;
 
@@ -250,4 +251,82 @@ fn palette_accepts_leading_colon_and_exact_block_times() -> color_eyre::Result<(
 
     let _ = std::fs::remove_file(&store.path);
     Ok(())
+}
+
+#[test]
+fn visible_blocks_group_loose_and_exact_blocks_for_timeline_navigation() {
+    let later = Uuid::now_v7();
+    let next = Uuid::now_v7();
+    let afternoon = Uuid::now_v7();
+    let morning = Uuid::now_v7();
+    let now = Uuid::now_v7();
+
+    let state = DayState::replay(&[
+        event_at(
+            0,
+            EventKind::BlockAdded {
+                block_id: later,
+                title: "Package release notes".to_string(),
+                intent: None,
+                timing: BlockTiming::Loose {
+                    label: "later".to_string(),
+                },
+            },
+        ),
+        event_at(
+            1,
+            EventKind::BlockAdded {
+                block_id: next,
+                title: "Polish review screen".to_string(),
+                intent: None,
+                timing: BlockTiming::Loose {
+                    label: "next".to_string(),
+                },
+            },
+        ),
+        event_at(
+            2,
+            EventKind::BlockAdded {
+                block_id: afternoon,
+                title: "Review metrics".to_string(),
+                intent: None,
+                timing: BlockTiming::Exact {
+                    start: "14:30".to_string(),
+                    end: None,
+                },
+            },
+        ),
+        event_at(
+            3,
+            EventKind::BlockAdded {
+                block_id: morning,
+                title: "Write parser tests".to_string(),
+                intent: None,
+                timing: BlockTiming::Exact {
+                    start: "09:30".to_string(),
+                    end: None,
+                },
+            },
+        ),
+        event_at(
+            4,
+            EventKind::BlockAdded {
+                block_id: now,
+                title: "Stabilize CLI flow".to_string(),
+                intent: None,
+                timing: BlockTiming::Loose {
+                    label: "now".to_string(),
+                },
+            },
+        ),
+    ]);
+
+    let app = AppState::from_day(state);
+    let ids: Vec<Uuid> = app
+        .visible_blocks()
+        .into_iter()
+        .map(|block| block.id)
+        .collect();
+
+    assert_eq!(ids, vec![now, next, morning, afternoon, later]);
 }
